@@ -1,0 +1,26 @@
+.camera-form {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: white;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  z-index: 1000;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.camera-form h3 {
+  margin: 0 0 10px;
+}
+
+.camera-form input {
+  margin: 5px 0;
+  padding: 5px;
+  width: 100%;
+}
+
+.camera-form button {
+  margin: 5px 5px 0 0;
+  padding: 5px 10px;
+}
