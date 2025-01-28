@@ -16,7 +16,7 @@ function DeleteCameraDialog({ open, camera, onClose, onConfirm }) {
         {camera ? (
           <>
             <Typography>
-              Вы действительно хотите удалить камеру с IP: {camera.ip}?
+              Вы действительно хотите удалить камеру с URL: {camera.rtspUrl}?
             </Typography>
             <Typography variant="body2" color="textSecondary">
               Координаты: {camera.start.lat.toFixed(4)},{' '}
@@ -31,7 +31,7 @@ function DeleteCameraDialog({ open, camera, onClose, onConfirm }) {
         <Button onClick={onClose} color="secondary">
           Отмена
         </Button>
-        <Button onClick={onConfirm} color="primary" variant="contained">
+        <Button onClick={onConfirm} color="error" variant="contained">
           Удалить
         </Button>
       </DialogActions>

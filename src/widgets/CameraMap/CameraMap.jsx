@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import {
   MapContainer,
   TileLayer,
@@ -11,7 +11,6 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { renderToString } from 'react-dom/server'
 import VideocamIcon from '@mui/icons-material/Videocam'
-import Hls from 'hls.js' // Импортируем HLS.js
 
 // ====== Создание кастомной иконки ======
 const createCameraIcon = (color) =>
@@ -36,14 +35,12 @@ const calculateCameraView = (
   radius = 0.0002,
   fov = Math.PI / 5
 ) => {
-  const angle = Math.atan2(end.lat - start.lat, end.lng - start.lng) // Угол направления камеры
-  const points = [] // Точки полукруга
-  const step = fov / 30 // Количество шагов для плавности полукруга
+  const angle = Math.atan2(end.lat - start.lat, end.lng - start.lng)
+  const points = []
+  const step = fov / 30
 
-  // Генерация точек для полукруга
   for (let a = -fov / 2; a <= fov / 2; a += step) {
     const currentAngle = angle + a
-
     const point = {
       lat: start.lat + radius * Math.sin(currentAngle),
       lng:
@@ -51,33 +48,27 @@ const calculateCameraView = (
         (radius * Math.cos(currentAngle)) /
           Math.cos((start.lat * Math.PI) / 180),
     }
-
     points.push([point.lat, point.lng])
   }
 
-  // Добавляем начальную точку камеры в полукруг
-  points.unshift([start.lat, start.lng])
-
+  points.unshift([start.lat, start.lng]) // начальная точка камеры
   return points
 }
 
-// ====== Компонент для обработки кликов/движения мыши ======
 function MapClickHandler({
   point,
   direction,
   setPoint,
   setDirection,
-  openDialog,
   handleDialogOpen,
 }) {
   useMapEvents({
     click(e) {
       const { lat, lng } = e.latlng
       if (point && direction) {
-        // Открываем диалог для добавления камеры
+        // Открываем диалог "Добавить камеру"
         handleDialogOpen()
       } else {
-        // Сохраняем точку
         setPoint({ lat, lng })
       }
     },
@@ -90,7 +81,6 @@ function MapClickHandler({
   return null
 }
 
-// ====== Основной компонент карты ======
 function CameraMap({
   point,
   direction,
@@ -102,37 +92,14 @@ function CameraMap({
   mapRef,
   openDialog,
   handleDialogOpen,
-  handleOpenDeleteDialog, // Получаем функцию открытия диалога удаления
+  handleOpenDeleteDialog,
+  handleOpenVideoDialog,
 }) {
-  const [hoveredCamera, setHoveredCamera] = useState(null) // Состояние для хранения активной камеры
-
-  useEffect(() => {
-    if (hoveredCamera?.ip) {
-      const videoElement = document.getElementById(`video-${hoveredCamera.ip}`)
-      const hlsUrl = `http://localhost:8000/stream.m3u8` // Ваш локальный HLS URL
-
-      if (Hls.isSupported() && videoElement) {
-        const hls = new Hls()
-        hls.loadSource(hlsUrl)
-        hls.attachMedia(videoElement)
-
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          videoElement.play()
-        })
-
-        return () => {
-          hls.destroy()
-        }
-      } else if (videoElement?.canPlayType('application/vnd.apple.mpegurl')) {
-        videoElement.src = hlsUrl
-      }
-    }
-  }, [hoveredCamera])
-
   return (
     <MapContainer
       center={[55.83, 37.629]}
       zoom={16}
+      doubleClickZoom={false}
       className="leaflet-container"
       style={{ height: '100%', zIndex: 2 }}
       maxBounds={[
@@ -154,60 +121,52 @@ function CameraMap({
         direction={direction}
         setPoint={setPoint}
         setDirection={setDirection}
-        openDialog={openDialog}
         handleDialogOpen={handleDialogOpen}
       />
 
-      {/* Все добавленные области видимости + маркеры */}
-      {cameraViews.map((view, index) => (
-        <React.Fragment key={index}>
-          {/* Полукруговая область видимости */}
-          <Polygon
-            positions={calculateCameraView(
-              view.start,
-              view.end,
-              0.0002,
-              Math.PI / 5
-            )} // Радиус и угол обзора
-            color="transparent"
-            fillColor="rgba(0, 0, 255, 0.9)"
-            weight={1.5}
-          />
-          {/* Камера (маркер) */}
-          <Marker
-            position={[view.start.lat, view.start.lng]}
-            icon={createCameraIcon(
-              highlightedCamera?.ip === view.ip ? iconColor : 'black'
-            )}
-            eventHandlers={{
-              click: () => handleOpenDeleteDialog(view), // Открыть диалог удаления
-              mouseover: () => setHoveredCamera(view), // Наведение мыши
-              mouseout: () => setHoveredCamera(null), // Убрать мышь
-            }}
-          >
-            {/* Всплывающее окно с видео при наведении */}
-            {hoveredCamera?.ip === view.ip && (
-              <Tooltip direction="top" offset={[0, -20]} permanent>
-                <div style={{ width: '200px', height: '150px' }}>
-                  <video
-                    id={`video-${view.ip}`}
-                    style={{ width: '100%', height: '100%' }}
-                    controls
-                    autoPlay
-                    muted
-                    onError={(e) => console.error('Video error:', e)}
-                    onLoadedData={() => console.log('Video loaded')}
-                    onPlay={() => console.log('Video is playing')}
-                    onPause={() => console.log('Video paused')}
-                  />
-                </div>
-              </Tooltip>
-            )}
-          </Marker>
-        </React.Fragment>
-      ))}
+      {cameraViews.map((view, index) => {
+        // Извлечение части после символа @
+        const rtspDetails = view.rtspUrl.includes('@')
+          ? view.rtspUrl.split('@')[1]
+          : 'Данные отсутствуют'
 
-      {/* Текущая (ещё не подтверждённая) область видимости */}
+        return (
+          <React.Fragment key={index}>
+            {/* Конус обзора */}
+            <Polygon
+              positions={calculateCameraView(
+                view.start,
+                view.end,
+                0.0002,
+                Math.PI / 5
+              )}
+              color="transparent"
+              fillColor="rgba(0, 0, 255, 0.9)"
+              weight={1.5}
+              interactive={false}
+            />
+
+            {/* Маркер */}
+            <Marker
+              position={[view.start.lat, view.start.lng]}
+              icon={createCameraIcon(
+                highlightedCamera?.rtspUrl === view.rtspUrl
+                  ? iconColor
+                  : 'black'
+              )}
+              eventHandlers={{
+                click: () => handleOpenVideoDialog(view),
+              }}
+            >
+              {/* Попап для отображения части RTSP ссылки */}
+              <Tooltip>
+                <div>{rtspDetails}</div>
+              </Tooltip>
+            </Marker>
+          </React.Fragment>
+        )
+      })}
+
       {point && direction && (
         <Polygon
           positions={calculateCameraView(point, direction)}

@@ -12,8 +12,8 @@ import {
 function AddCameraDialog({
   openDialog,
   handleDialogClose,
-  cameraIP,
-  setCameraIP,
+  cameraUrl,
+  setCameraUrl,
   handleAddCamera,
 }) {
   return (
@@ -28,14 +28,18 @@ function AddCameraDialog({
     >
       <DialogTitle>Добавить камеру</DialogTitle>
       <DialogContent>
-        <Box mb={2}>Введите IP-адрес камеры.</Box>
+        <Box mb={2}>
+          Введите RTSP-ссылку камеры (например,
+          rtsp://operator:operator@10.0.190.6/live/619).
+        </Box>
         <TextField
-          label="IP-адрес"
+          label="Ссылка (RTSP)"
           fullWidth
-          value={cameraIP}
-          onChange={(e) => setCameraIP(e.target.value)}
+          value={cameraUrl}
+          onChange={(e) => setCameraUrl(e.target.value)}
           margin="normal"
           autoFocus
+          placeholder="Введите RTSP ссылку камеры"
         />
       </DialogContent>
       <DialogActions>
@@ -46,7 +50,7 @@ function AddCameraDialog({
           onClick={handleAddCamera}
           variant="contained"
           color="primary"
-          disabled={!cameraIP.trim()}
+          disabled={!cameraUrl.trim()}
         >
           Добавить
         </Button>

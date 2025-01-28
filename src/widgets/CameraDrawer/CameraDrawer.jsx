@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import {
   Drawer,
   Box,
@@ -15,30 +15,44 @@ function CameraDrawer({
   drawerOpen,
   onCloseDrawer,
   cameraViews,
-  highlightedCamera,
-  iconColor,
   search,
   setSearch,
+  handleDeleteCamera,
   startBlinkingMarker,
 }) {
+  // Вычисляем ширину дравера в зависимости от длины самой длинной ссылки
+  const drawerWidth = useMemo(() => {
+    const longestLink = cameraViews.reduce(
+      (max, camera) =>
+        camera.rtspUrl.length > max.length ? camera.rtspUrl : max,
+      ''
+    )
+    const approxCharWidth = 8 // Средняя ширина символа (в пикселях)
+    const padding = 100 // Дополнительное пространство для отступов
+    const calculatedWidth = longestLink.length * approxCharWidth + padding
+
+    return Math.min(Math.max(calculatedWidth, 300), 600) // Ограничиваем от 300px до 600px
+  }, [cameraViews])
+
   return (
     <Drawer
-      anchor="right"
+      anchor="left"
       open={drawerOpen}
       onClose={onCloseDrawer}
       PaperProps={{
         sx: {
+          width: `${drawerWidth}px`, // Устанавливаем ширину дравера
           top: '64px',
           height: 'calc(100% - 64px)',
         },
       }}
     >
-      <Box p={2} width={300} sx={{ overflowY: 'auto', height: '100%' }}>
+      <Box p={2} sx={{ overflowY: 'auto', height: '100%' }}>
         <Typography variant="h6" gutterBottom>
           Список камер
         </Typography>
         <TextField
-          placeholder="Поиск по IP"
+          placeholder="Поиск по URL"
           variant="outlined"
           size="small"
           value={search}
@@ -48,7 +62,7 @@ function CameraDrawer({
         <List>
           {cameraViews
             .filter((camera) =>
-              camera.ip.toLowerCase().includes(search.toLowerCase())
+              camera.rtspUrl.toLowerCase().includes(search.toLowerCase())
             )
             .map((camera, index) => (
               <ListItem
@@ -56,33 +70,48 @@ function CameraDrawer({
                 disablePadding
                 sx={{
                   display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
+                  flexDirection: 'column', // Вертикальное выравнивание текста
+                  alignItems: 'flex-start',
+                  gap: 1,
+                  padding: '8px 0',
                 }}
               >
-                <VideocamIcon
-                  style={{
-                    color:
-                      highlightedCamera?.ip === camera.ip ? iconColor : 'black',
-                    marginRight: 8,
-                  }}
-                />
-                <ListItemText
-                  primary={`IP: ${camera.ip}`}
-                  secondary={`Координаты: ${camera.start.lat.toFixed(
-                    4
-                  )}, ${camera.start.lng.toFixed(4)}`}
-                />
-                <Button
-                  size="small"
-                  onClick={() => startBlinkingMarker(camera)} // Вызываем подсветку камеры
-                  variant="outlined"
-                  sx={{
-                    minWidth: 'auto',
-                  }}
-                >
-                  Обнаружить
-                </Button>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <VideocamIcon style={{ color: 'black' }} />
+                  <ListItemText
+                    primary={`URL: ${camera.rtspUrl}`}
+                    secondary={`Координаты: ${camera.start.lat.toFixed(
+                      4
+                    )}, ${camera.start.lng.toFixed(4)}`}
+                    sx={{
+                      wordWrap: 'break-word',
+                      whiteSpace: 'normal',
+                    }}
+                  />
+                </Box>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button
+                    size="small"
+                    onClick={() => startBlinkingMarker(camera)}
+                    variant="outlined"
+                    sx={{
+                      minWidth: 'auto',
+                    }}
+                  >
+                    Обнаружить
+                  </Button>
+                  <Button
+                    size="small"
+                    onClick={() => handleDeleteCamera(camera)}
+                    variant="contained"
+                    color="error"
+                    sx={{
+                      minWidth: 'auto',
+                    }}
+                  >
+                    Удалить
+                  </Button>
+                </Box>
               </ListItem>
             ))}
         </List>

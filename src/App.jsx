@@ -3,22 +3,29 @@ import './App.css'
 import Navbar from './widgets/Navbar/Navbar'
 import CameraMap from './widgets/CameraMap/CameraMap'
 import CameraDrawer from './widgets/CameraDrawer/CameraDrawer'
-import AddCameraDialog from './widgets/AddCameraDialog/AddCameraDialog'
-import DeleteCameraDialog from './widgets/AddCameraDialog/DeleteCameraDialog'
+import AddCameraDialog from './widgets/CameraDialog/AddCameraDialog'
+import VideoDialog from './widgets/CameraDialog/VideoDialog'
+import DeleteCameraDialog from './widgets/CameraDialog/DeleteCameraDialog'
+import AddCameraByCoordinatesDialog from './widgets/CameraDialog/AddCameraByCoordinatesDialog' // Новый диалог
 
 function App() {
   const [point, setPoint] = useState(null)
   const [direction, setDirection] = useState(null)
   const [cameraViews, setCameraViews] = useState([])
   const [openDialog, setOpenDialog] = useState(false)
+  const [openCoordsDialog, setOpenCoordsDialog] = useState(false) // Диалог добавления по координатам
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [cameraIP, setCameraIP] = useState('')
+  const [cameraUrl, setCameraUrl] = useState('')
   const [search, setSearch] = useState('')
   const [highlightedCamera, setHighlightedCamera] = useState(null)
   const [iconColor, setIconColor] = useState('black')
   const mapRef = useRef(null)
 
-  // Состояния для диалога удаления камеры
+  // Для видео диалога
+  const [openVideoDialog, setOpenVideoDialog] = useState(false)
+  const [cameraForVideo, setCameraForVideo] = useState(null)
+
+  // Для диалога удаления
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false)
   const [cameraToDelete, setCameraToDelete] = useState(null)
 
@@ -34,41 +41,86 @@ function App() {
     setOpenDeleteDialog(false)
   }
 
-  // Удаление камеры
-  const handleDeleteCamera = () => {
-    if (cameraToDelete) {
-      setCameraViews((prev) => prev.filter((c) => c.ip !== cameraToDelete.ip))
-      handleCloseDeleteDialog()
-    }
+  // Подтверждение удаления камеры
+  const handleConfirmDeleteCamera = () => {
+    setCameraViews((prev) =>
+      prev.filter(
+        (existingCamera) => existingCamera.rtspUrl !== cameraToDelete.rtspUrl
+      )
+    )
+    setCameraToDelete(null)
+    setOpenDeleteDialog(false)
   }
 
-  // ===== Обработчик клавиши Escape =====
+  // Обработчик клавиши "Escape"
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         if (openDialog) {
-          // Закрываем диалог добавления камеры
           setOpenDialog(false)
         } else if (point || direction) {
-          // Отменяем создание камеры
           setPoint(null)
           setDirection(null)
         }
       }
     }
 
-    // Добавляем слушатель события
     window.addEventListener('keydown', handleKeyDown)
-
-    // Убираем слушатель при размонтировании
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
     }
   }, [openDialog, point, direction])
 
+  // Открытие видео по двойному клику
+  const handleOpenVideoDialog = (camera) => {
+    setCameraForVideo(camera)
+    setOpenVideoDialog(true)
+  }
+
+  const handleCloseVideoDialog = () => {
+    setCameraForVideo(null)
+    setOpenVideoDialog(false)
+  }
+
+  // Добавление камеры через диалог выбора направления
+  const handleAddCamera = () => {
+    if (cameraUrl.trim() && point && direction) {
+      const newCamera = {
+        start: point,
+        end: direction,
+        rtspUrl: cameraUrl.trim(),
+      }
+      setCameraViews((prev) => [...prev, newCamera])
+      setCameraUrl('')
+      setPoint(null)
+      setDirection(null)
+      setOpenDialog(false)
+    }
+  }
+
+  // Добавление камеры по координатам
+  const handleAddCameraByCoordinates = (latitude, longitude, url) => {
+    if (!latitude || !longitude || !url) {
+      alert('Все поля должны быть заполнены!')
+      return
+    }
+
+    const newCamera = {
+      start: { lat: parseFloat(latitude), lng: parseFloat(longitude) },
+      end: null, // Можно оставить null, если направление не требуется
+      rtspUrl: url.trim(),
+    }
+
+    setCameraViews((prev) => [...prev, newCamera])
+    setOpenCoordsDialog(false) // Закрыть диалог
+  }
+
   return (
     <div style={{ height: '100vh' }}>
-      <Navbar onMenuClick={() => setDrawerOpen(true)} />
+      <Navbar
+        onMenuClick={() => setDrawerOpen(true)}
+        onAddByCoordsClick={() => setOpenCoordsDialog(true)} // Кнопка для открытия диалога по координатам
+      />
       <div style={{ marginTop: 64, height: 'calc(100% - 64px)' }}>
         <CameraMap
           point={point}
@@ -81,9 +133,10 @@ function App() {
           mapRef={mapRef}
           openDialog={openDialog}
           handleDialogOpen={() => setOpenDialog(true)}
-          handleOpenDeleteDialog={handleOpenDeleteDialog}
+          handleOpenVideoDialog={handleOpenVideoDialog}
         />
       </div>
+
       <CameraDrawer
         drawerOpen={drawerOpen}
         onCloseDrawer={() => setDrawerOpen(false)}
@@ -92,17 +145,14 @@ function App() {
         iconColor={iconColor}
         search={search}
         setSearch={setSearch}
-        // Передаём функцию для мигания камеры
+        handleDeleteCamera={handleOpenDeleteDialog}
         startBlinkingMarker={(camera) => {
           setHighlightedCamera(camera)
-          // Логика мигания
           const timer = setInterval(() => {
             setIconColor((prevColor) =>
               prevColor === 'black' ? 'red' : 'black'
             )
           }, 500)
-
-          // Сбрасываем подсветку через 3 секунды
           setTimeout(() => {
             clearInterval(timer)
             setHighlightedCamera(null)
@@ -114,32 +164,35 @@ function App() {
       <AddCameraDialog
         openDialog={openDialog}
         handleDialogClose={() => {
-          // Закрываем диалог и сбрасываем точку и направление
           setOpenDialog(false)
           setPoint(null)
           setDirection(null)
         }}
-        cameraIP={cameraIP}
-        setCameraIP={setCameraIP}
-        handleAddCamera={() => {
-          if (cameraIP.trim() && point && direction) {
-            setCameraViews((prev) => [
-              ...prev,
-              { start: point, end: direction, ip: cameraIP.trim() },
-            ])
-            setCameraIP('')
-            setPoint(null)
-            setDirection(null)
-            setOpenDialog(false)
-          }
-        }}
+        cameraUrl={cameraUrl}
+        setCameraUrl={setCameraUrl}
+        handleAddCamera={handleAddCamera}
       />
+
+      <AddCameraByCoordinatesDialog
+        open={openCoordsDialog}
+        onClose={() => setOpenCoordsDialog(false)}
+        onAddCamera={handleAddCameraByCoordinates}
+      />
+
+      {openVideoDialog && (
+        <VideoDialog
+          key={cameraForVideo?.rtspUrl || 'default'}
+          open={openVideoDialog}
+          onClose={handleCloseVideoDialog}
+          camera={cameraForVideo}
+        />
+      )}
 
       <DeleteCameraDialog
         open={openDeleteDialog}
         camera={cameraToDelete}
         onClose={handleCloseDeleteDialog}
-        onConfirm={handleDeleteCamera}
+        onConfirm={handleConfirmDeleteCamera}
       />
     </div>
   )
