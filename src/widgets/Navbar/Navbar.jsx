@@ -2,7 +2,7 @@ import React from 'react'
 import { AppBar, Toolbar, Typography, IconButton, Button } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
 
-function Navbar({ onMenuClick, onAddByCoordsClick }) {
+function Navbar({ onMenuClick, onAddByCoordsClick, cameraCount }) {
   return (
     <AppBar position="fixed">
       <Toolbar>
@@ -14,13 +14,12 @@ function Navbar({ onMenuClick, onAddByCoordsClick }) {
           component="div"
           sx={{ flexGrow: 1, textAlign: 'center' }}
         >
-          Камеры наблюдения ТСО
+          Камеры наблюдения ТСО {cameraCount}
         </Typography>
         <Button
           onClick={onAddByCoordsClick}
-          variant="contained" // Делает кнопку с заливкой
-          color="secondary" // Добавляем выделенный цвет
-          sx={{ marginLeft: 2 }} // Отступ от текста
+          variant="contained"
+          color="success" // Изменяем цвет на зеленый
         >
           Добавить по координатам
         </Button>

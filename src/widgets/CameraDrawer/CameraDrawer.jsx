@@ -15,10 +15,13 @@ function CameraDrawer({
   drawerOpen,
   onCloseDrawer,
   cameraViews,
+  highlightedCamera,
+  iconColor,
   search,
   setSearch,
   handleDeleteCamera,
   startBlinkingMarker,
+  blinkingCamera, // Получаем текущий моргающий маркер
 }) {
   // Вычисляем ширину дравера в зависимости от длины самой длинной ссылки
   const drawerWidth = useMemo(() => {

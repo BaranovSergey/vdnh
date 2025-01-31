@@ -11,6 +11,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { renderToString } from 'react-dom/server'
 import VideocamIcon from '@mui/icons-material/Videocam'
+import MarkerClusterGroup from 'react-leaflet-markercluster'
 
 // ====== Создание кастомной иконки ======
 const createCameraIcon = (color) =>
@@ -35,6 +36,11 @@ const calculateCameraView = (
   radius = 0.0002,
   fov = Math.PI / 5
 ) => {
+  if (!start || !end) {
+    // Если направление (end) отсутствует, возвращаем пустой массив
+    return []
+  }
+
   const angle = Math.atan2(end.lat - start.lat, end.lng - start.lng)
   const points = []
   const step = fov / 30
@@ -92,8 +98,8 @@ function CameraMap({
   mapRef,
   openDialog,
   handleDialogOpen,
-  handleOpenDeleteDialog,
   handleOpenVideoDialog,
+  blinkingCamera, // Получаем текущий моргающий маркер
 }) {
   return (
     <MapContainer
@@ -124,48 +130,60 @@ function CameraMap({
         handleDialogOpen={handleDialogOpen}
       />
 
-      {cameraViews.map((view, index) => {
-        // Извлечение части после символа @
-        const rtspDetails = view.rtspUrl.includes('@')
-          ? view.rtspUrl.split('@')[1]
-          : 'Данные отсутствуют'
+      <MarkerClusterGroup
+        distance={40} // Уменьшаем расстояние для группировки маркеров
+        spiderfyOnMaxZoom={true} // Развернуть маркеры при максимальном зуме
+        showCoverageOnHover={false} // Не показывать область покрытия при наведении
+        zoomToBoundsOnClick={true} // При клике на кластер увеличивать зум до уровня, где маркеры разделены
+        disableClusteringAtZoom={18} // Отключить кластеризацию при зуме 18 и выше
+      >
+        {cameraViews.map((view, index) => {
+          // Извлечение части после символа @
+          const rtspDetails = view.rtspUrl.includes('@')
+            ? view.rtspUrl.split('@')[1]
+            : 'Данные отсутствуют'
 
-        return (
-          <React.Fragment key={index}>
-            {/* Конус обзора */}
-            <Polygon
-              positions={calculateCameraView(
-                view.start,
-                view.end,
-                0.0002,
-                Math.PI / 5
-              )}
-              color="transparent"
-              fillColor="rgba(0, 0, 255, 0.9)"
-              weight={1.5}
-              interactive={false}
-            />
+          // Определяем цвет иконки
+          const markerColor =
+            blinkingCamera?.rtspUrl === view.rtspUrl ? iconColor : 'black'
 
-            {/* Маркер */}
-            <Marker
-              position={[view.start.lat, view.start.lng]}
-              icon={createCameraIcon(
-                highlightedCamera?.rtspUrl === view.rtspUrl
-                  ? iconColor
-                  : 'black'
-              )}
-              eventHandlers={{
-                click: () => handleOpenVideoDialog(view),
-              }}
-            >
-              {/* Попап для отображения части RTSP ссылки */}
-              <Tooltip>
-                <div>{rtspDetails}</div>
-              </Tooltip>
-            </Marker>
-          </React.Fragment>
-        )
-      })}
+          return (
+            <React.Fragment key={index}>
+              {/* Конус обзора */}
+              <Polygon
+                positions={
+                  view.end
+                    ? calculateCameraView(
+                        view.start,
+                        view.end,
+                        0.0002,
+                        Math.PI / 5
+                      )
+                    : [] // Если направления нет, не отображать конус обзора
+                }
+                color="transparent"
+                fillColor="rgba(0, 0, 255, 0.9)"
+                weight={1.5}
+                interactive={false}
+              />
+
+              {/* Маркер */}
+              <Marker
+                position={[view.start.lat, view.start.lng]}
+                icon={createCameraIcon(markerColor)}
+                eventHandlers={{
+                  click: () => handleOpenVideoDialog(view),
+                }}
+              >
+                {/* Попап для отображения части RTSP ссылки */}
+                <Tooltip>
+                  <div>{rtspDetails}</div>
+                </Tooltip>
+              </Marker>
+            </React.Fragment>
+          )
+        })}
+      </MarkerClusterGroup>
 
       {point && direction && (
         <Polygon
