@@ -30,58 +30,43 @@ const createCameraIcon = (color) =>
   })
 
 // ====== Расчёт области видимости (треугольник) ======
-const calculateCameraView = (
-  start,
-  end,
-  radius = 0.0002,
-  fov = Math.PI / 5
-) => {
-  if (!start || !end) {
-    // Если направление (end) отсутствует, возвращаем пустой массив
-    return []
-  }
+// const calculateCameraView = (
+//   start,
+//   end,
+//   radius = 0.0002,
+//   fov = Math.PI / 5
+// ) => {
+//   if (!start || !end) {
+//     // Если направление (end) отсутствует, возвращаем пустой массив
+//     return []
+//   }
 
-  const angle = Math.atan2(end.lat - start.lat, end.lng - start.lng)
-  const points = []
-  const step = fov / 30
+//   const angle = Math.atan2(end.lat - start.lat, end.lng - start.lng)
+//   const points = []
+//   const step = fov / 30
 
-  for (let a = -fov / 2; a <= fov / 2; a += step) {
-    const currentAngle = angle + a
-    const point = {
-      lat: start.lat + radius * Math.sin(currentAngle),
-      lng:
-        start.lng +
-        (radius * Math.cos(currentAngle)) /
-          Math.cos((start.lat * Math.PI) / 180),
-    }
-    points.push([point.lat, point.lng])
-  }
+//   for (let a = -fov / 2; a <= fov / 2; a += step) {
+//     const currentAngle = angle + a
+//     const point = {
+//       lat: start.lat + radius * Math.sin(currentAngle),
+//       lng:
+//         start.lng +
+//         (radius * Math.cos(currentAngle)) /
+//           Math.cos((start.lat * Math.PI) / 180),
+//     }
+//     points.push([point.lat, point.lng])
+//   }
 
-  points.unshift([start.lat, start.lng]) // начальная точка камеры
-  return points
-}
+//   points.unshift([start.lat, start.lng]) // начальная точка камеры
+//   return points
+// }
 
-function MapClickHandler({
-  point,
-  direction,
-  setPoint,
-  setDirection,
-  handleDialogOpen,
-}) {
+function MapClickHandler({ point, setPoint, handleDialogOpen }) {
   useMapEvents({
     click(e) {
       const { lat, lng } = e.latlng
-      if (point && direction) {
-        // Открываем диалог "Добавить камеру"
-        handleDialogOpen()
-      } else {
-        setPoint({ lat, lng })
-      }
-    },
-    mousemove(e) {
-      if (!point) return
-      const { lat, lng } = e.latlng
-      setDirection({ lat, lng })
+      setPoint({ lat, lng }) // Устанавливаем точку
+      handleDialogOpen() // Немедленно открываем диалог
     },
   })
   return null
@@ -124,9 +109,7 @@ function CameraMap({
 
       <MapClickHandler
         point={point}
-        direction={direction}
         setPoint={setPoint}
-        setDirection={setDirection}
         handleDialogOpen={handleDialogOpen}
       />
 
@@ -149,7 +132,7 @@ function CameraMap({
 
           return (
             <React.Fragment key={index}>
-              {/* Конус обзора */}
+              {/* Конус обзора
               <Polygon
                 positions={
                   view.end
@@ -165,7 +148,7 @@ function CameraMap({
                 fillColor="rgba(0, 0, 255, 0.9)"
                 weight={1.5}
                 interactive={false}
-              />
+              /> */}
 
               {/* Маркер */}
               <Marker
@@ -185,14 +168,14 @@ function CameraMap({
         })}
       </MarkerClusterGroup>
 
-      {point && direction && (
+      {/* {point && direction && (
         <Polygon
           positions={calculateCameraView(point, direction)}
           color="green"
           fillColor="rgba(0, 255, 0, 0.4)"
           weight={1.5}
         />
-      )}
+      )} */}
     </MapContainer>
   )
 }

@@ -11,7 +11,7 @@ import { Snackbar, Alert } from '@mui/material'
 
 function App() {
   const [point, setPoint] = useState(null)
-  const [direction, setDirection] = useState(null)
+  // const [direction, setDirection] = useState(null)
   const [cameraViews, setCameraViews] = useState([])
   const [openDialog, setOpenDialog] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -97,9 +97,8 @@ function App() {
       if (event.key === 'Escape') {
         if (openDialog) {
           setOpenDialog(false) // Закрытие диалога добавления камеры
-        } else if (point || direction) {
+        } else if (point) {
           setPoint(null) // Сброс точки выбора
-          setDirection(null) // Сброс направления
         }
       }
     }
@@ -108,7 +107,7 @@ function App() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown) // Очистка обработчика при размонтировании
     }
-  }, [openDialog, point, direction])
+  }, [openDialog, point])
 
   // Открытие видео по двойному клику
   const handleOpenVideoDialog = (camera) => {
@@ -123,10 +122,9 @@ function App() {
 
   // Добавление камеры через диалог
   const handleAddCamera = () => {
-    if (cameraUrl.trim() && point && direction) {
+    if (cameraUrl.trim() && point) {
       const newCamera = {
         start: point,
-        end: direction,
         rtspUrl: cameraUrl.trim(),
       }
 
@@ -146,7 +144,6 @@ function App() {
       setCameraViews((prev) => [...prev, newCamera])
       setCameraUrl('')
       setPoint(null)
-      setDirection(null)
       setOpenDialog(false)
     }
   }
@@ -206,9 +203,7 @@ function App() {
       <div style={{ marginTop: 64, height: 'calc(100% - 64px)' }}>
         <CameraMap
           point={point}
-          direction={direction}
           setPoint={setPoint}
-          setDirection={setDirection}
           cameraViews={cameraViews}
           highlightedCamera={highlightedCamera}
           iconColor={iconColor}
@@ -238,7 +233,6 @@ function App() {
         handleDialogClose={() => {
           setOpenDialog(false)
           setPoint(null)
-          setDirection(null)
         }}
         cameraUrl={cameraUrl}
         setCameraUrl={setCameraUrl}
@@ -271,8 +265,8 @@ function App() {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         ContentProps={{
           sx: {
-            width: '50vw', // Ширина Snackbar составляет 50% от ширины экрана
-            maxWidth: '50vw', // Максимальная ширина
+            width: '40vw', // Ширина Snackbar составляет 50% от ширины экрана
+            maxWidth: '40vw', // Максимальная ширина
           },
         }}
       >

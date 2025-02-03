@@ -140,7 +140,6 @@ function AddCameraByCoordsDialog({
     if (cameraUrlByCoords.trim() && !isNaN(lat) && !isNaN(lng)) {
       const newCamera = {
         start: { lat, lng },
-        end: null, // Направление не задано
         rtspUrl: cameraUrlByCoords.trim(),
       }
 
