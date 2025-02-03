@@ -13,6 +13,6 @@ code {
 }
 
 .leaflet-container {
-  height: 100vh; /* Высота карты */
+  height: 100%; /* Высота карты */
   width: 100%; /* Ширина карты */
 }

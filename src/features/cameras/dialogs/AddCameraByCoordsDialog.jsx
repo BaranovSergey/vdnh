@@ -25,7 +25,6 @@ function AddCameraByCoordsDialog({
   const [dragActive, setDragActive] = useState(false)
   const [cameraUrlByCoords, setCameraUrlByCoords] = useState('')
   const [coordinates, setCoordinates] = useState({ lat: '', lng: '' })
-  const [newCameras, setNewCameras] = useState([])
   const [snackbarOpen, setSnackbarOpen] = useState(false)
   const [hovered, setHovered] = useState(false)
 
@@ -45,7 +44,6 @@ function AddCameraByCoordsDialog({
     e.preventDefault()
     e.stopPropagation()
     setDragActive(false)
-
     const file = e.dataTransfer.files[0]
     if (file && file.name.endsWith('.xlsx')) {
       handleFile(file)
@@ -64,11 +62,9 @@ function AddCameraByCoordsDialog({
       const sheet = workbook.Sheets[sheetName]
       const json = XLSX.utils.sheet_to_json(sheet, { header: 1 })
 
-      // Проверяем структуру данных
       if (json.length > 0 && json[0].length >= 2) {
         try {
           const cameras = json.slice(1).map((row) => {
-            // Проверяем наличие ячеек
             if (!row[0] || !row[1]) {
               throw new Error(
                 `Некорректные данные в строке: ${JSON.stringify(
@@ -76,30 +72,25 @@ function AddCameraByCoordsDialog({
                 )}. Ожидается RTSP и координаты.`
               )
             }
-
             const rtspUrl = row[0].trim()
             const coordinates = row[1].trim()
             const [latStr, lngStr] = coordinates.split(',')
-
             if (!latStr || !lngStr) {
               throw new Error(
                 `Некорректные координаты: ${coordinates}. Ожидается два числа через запятую.`
               )
             }
-
             const lat = parseFloat(latStr)
             const lng = parseFloat(lngStr)
-
             if (isNaN(lat) || isNaN(lng)) {
               throw new Error(
                 `Некорректные координаты: ${coordinates}. Не удалось преобразовать в числа.`
               )
             }
-
             return {
-              rtspUrl: rtspUrl,
-              start: { lat, lng }, // Используем объект start для координат
-              end: null, // Направление не задано
+              rtspUrl,
+              start: { lat, lng },
+              end: null,
             }
           })
 
@@ -107,18 +98,17 @@ function AddCameraByCoordsDialog({
           const existingUrls = new Set(
             cameraViews.map((camera) => camera.rtspUrl)
           )
-          const newAddedCameras = cameras.filter(
+          const newCameras = cameras.filter(
             (camera) => !existingUrls.has(camera.rtspUrl)
           )
 
-          if (newAddedCameras.length === 0) {
+          if (newCameras.length === 0) {
             setFileError('Все камеры уже добавлены.')
             return
           }
 
-          handleAddCamerasByFile(newAddedCameras) // Передаем данные в родительский компонент
-          setNewCameras(newAddedCameras)
-          setSnackbarOpen(true) // Открываем Snackbar
+          handleAddCamerasByFile(newCameras)
+          setSnackbarOpen(true)
           handleDialogClose()
         } catch (error) {
           setFileError(error.message)
@@ -136,22 +126,20 @@ function AddCameraByCoordsDialog({
   const handleAddCameraByCoordsSubmit = () => {
     const lat = parseFloat(coordinates.lat)
     const lng = parseFloat(coordinates.lng)
-
     if (cameraUrlByCoords.trim() && !isNaN(lat) && !isNaN(lng)) {
       const newCamera = {
-        start: { lat, lng },
         rtspUrl: cameraUrlByCoords.trim(),
+        start: { lat, lng },
+        end: null,
       }
 
-      // Проверяем, существует ли уже такая камера
-      const existingCamera = cameraViews.find(
+      const exists = cameraViews.find(
         (camera) =>
           camera.rtspUrl === newCamera.rtspUrl &&
           camera.start.lat === newCamera.start.lat &&
           camera.start.lng === newCamera.start.lng
       )
-
-      if (existingCamera) {
+      if (exists) {
         setFileError('Камера с такими координатами уже существует.')
         return
       }
@@ -163,25 +151,13 @@ function AddCameraByCoordsDialog({
     }
   }
 
-  // Закрытие Snackbar
   const handleSnackbarClose = (event, reason) => {
-    if (reason === 'clickaway') {
-      return
-    }
-    if (!hovered) {
-      setSnackbarOpen(false)
-    }
+    if (reason === 'clickaway') return
+    if (!hovered) setSnackbarOpen(false)
   }
 
-  // Обработка наведения мыши на Snackbar
-  const handleMouseEnter = () => {
-    setHovered(true)
-  }
-
-  // Обработка ухода мыши с Snackbar
-  const handleMouseLeave = () => {
-    setHovered(false)
-  }
+  const handleMouseEnter = () => setHovered(true)
+  const handleMouseLeave = () => setHovered(false)
 
   return (
     <Dialog
@@ -240,7 +216,7 @@ function AddCameraByCoordsDialog({
           </Typography>
         )}
 
-        {/* Форма для ручного ввода координат */}
+        {/* Форма для ручного ввода */}
         <Typography variant="h6" gutterBottom>
           Добавить камеру вручную
         </Typography>
@@ -286,6 +262,18 @@ function AddCameraByCoordsDialog({
           Добавить камеру
         </Button>
       </DialogActions>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={handleSnackbarClose}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert onClose={handleSnackbarClose} severity="success">
+          Камеры успешно добавлены!
+        </Alert>
+      </Snackbar>
     </Dialog>
   )
 }

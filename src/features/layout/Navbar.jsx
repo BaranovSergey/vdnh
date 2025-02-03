@@ -19,7 +19,7 @@ function Navbar({ onMenuClick, onAddByCoordsClick, cameraCount }) {
         <Button
           onClick={onAddByCoordsClick}
           variant="contained"
-          color="success" // Изменяем цвет на зеленый
+          color="success"
         >
           Добавить по координатам
         </Button>

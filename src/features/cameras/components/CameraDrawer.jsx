@@ -15,13 +15,12 @@ function CameraDrawer({
   drawerOpen,
   onCloseDrawer,
   cameraViews,
-  highlightedCamera,
   iconColor,
   search,
   setSearch,
   handleDeleteCamera,
   startBlinkingMarker,
-  blinkingCamera, // Получаем текущий моргающий маркер
+  blinkingCamera,
 }) {
   // Вычисляем ширину дравера в зависимости от длины самой длинной ссылки
   const drawerWidth = useMemo(() => {
@@ -30,11 +29,10 @@ function CameraDrawer({
         camera.rtspUrl.length > max.length ? camera.rtspUrl : max,
       ''
     )
-    const approxCharWidth = 8 // Средняя ширина символа (в пикселях)
-    const padding = 100 // Дополнительное пространство для отступов
+    const approxCharWidth = 8
+    const padding = 100
     const calculatedWidth = longestLink.length * approxCharWidth + padding
-
-    return Math.min(Math.max(calculatedWidth, 300), 600) // Ограничиваем от 300px до 600px
+    return Math.min(Math.max(calculatedWidth, 300), 600)
   }, [cameraViews])
 
   return (
@@ -44,7 +42,7 @@ function CameraDrawer({
       onClose={onCloseDrawer}
       PaperProps={{
         sx: {
-          width: `${drawerWidth}px`, // Устанавливаем ширину дравера
+          width: `${drawerWidth}px`,
           top: '64px',
           height: 'calc(100% - 64px)',
         },
@@ -73,7 +71,7 @@ function CameraDrawer({
                 disablePadding
                 sx={{
                   display: 'flex',
-                  flexDirection: 'column', // Вертикальное выравнивание текста
+                  flexDirection: 'column',
                   alignItems: 'flex-start',
                   gap: 1,
                   padding: '8px 0',
@@ -86,10 +84,7 @@ function CameraDrawer({
                     secondary={`Координаты: ${camera.start.lat.toFixed(
                       4
                     )}, ${camera.start.lng.toFixed(4)}`}
-                    sx={{
-                      wordWrap: 'break-word',
-                      whiteSpace: 'normal',
-                    }}
+                    sx={{ wordWrap: 'break-word', whiteSpace: 'normal' }}
                   />
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1 }}>
@@ -97,9 +92,7 @@ function CameraDrawer({
                     size="small"
                     onClick={() => startBlinkingMarker(camera)}
                     variant="outlined"
-                    sx={{
-                      minWidth: 'auto',
-                    }}
+                    sx={{ minWidth: 'auto' }}
                   >
                     Обнаружить
                   </Button>
@@ -108,9 +101,7 @@ function CameraDrawer({
                     onClick={() => handleDeleteCamera(camera)}
                     variant="contained"
                     color="error"
-                    sx={{
-                      minWidth: 'auto',
-                    }}
+                    sx={{ minWidth: 'auto' }}
                   >
                     Удалить
                   </Button>

@@ -9,15 +9,12 @@ import {
 } from '@mui/material'
 
 function VideoDialog({ open, onClose, camera }) {
-  // Функция для открытия потока в VLC
   const handleOpenInVLC = () => {
     const rtspUrl = camera?.rtspUrl
     if (!rtspUrl) {
       console.error('RTSP URL отсутствует.')
       return
     }
-
-    // Прямая передача RTSP URL через window.location
     window.location.href = rtspUrl
     onClose()
   }
@@ -28,10 +25,7 @@ function VideoDialog({ open, onClose, camera }) {
       onClose={onClose}
       maxWidth="sm"
       PaperProps={{
-        style: {
-          width: 'auto', // Ширина окна подстраивается под содержимое
-          maxWidth: '100%', // Максимальная ширина
-        },
+        style: { width: 'auto', maxWidth: '100%' },
       }}
     >
       <DialogTitle>Видео с камеры</DialogTitle>

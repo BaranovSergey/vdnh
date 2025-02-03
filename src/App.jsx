@@ -1,115 +1,84 @@
 import React, { useState, useRef, useEffect } from 'react'
-import './App.css'
-import Navbar from './widgets/Navbar/Navbar'
-import CameraMap from './widgets/CameraMap/CameraMap'
-import CameraDrawer from './widgets/CameraDrawer/CameraDrawer'
-import AddCameraDialog from './widgets/CameraDialog/AddCameraDialog'
-import VideoDialog from './widgets/CameraDialog/VideoDialog'
-import DeleteCameraDialog from './widgets/CameraDialog/DeleteCameraDialog'
-import AddCameraByCoordsDialog from './widgets/CameraDialog/AddCameraByCoordsDialog'
+import { useSelector, useDispatch } from 'react-redux'
 import { Snackbar, Alert } from '@mui/material'
+import Navbar from './features/layout/Navbar'
+import CameraMap from './features/cameras/components/CameraMap'
+import CameraDrawer from './features/cameras/components/CameraDrawer'
+import AddCameraDialog from './features/cameras/dialogs/AddCameraDialog'
+import VideoDialog from './features/cameras/dialogs/VideoDialog'
+import DeleteCameraDialog from './features/cameras/dialogs/DeleteCameraDialog'
+import AddCameraByCoordsDialog from './features/cameras/dialogs/AddCameraByCoordsDialog'
+import { addCamera, addCameras, removeCamera } from './store/camerasSlice'
+import './App.css'
 
 function App() {
+  // Если вы используете Redux, состояние списка камер берётся из сторa
+  const cameraViews = useSelector((state) => state.cameras.cameraViews)
+  const dispatch = useDispatch()
+
+  // Локальные состояния для работы с диалогами и картой
   const [point, setPoint] = useState(null)
-  // const [direction, setDirection] = useState(null)
-  const [cameraViews, setCameraViews] = useState([])
   const [openDialog, setOpenDialog] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [cameraUrl, setCameraUrl] = useState('')
   const [search, setSearch] = useState('')
-  const [highlightedCamera, setHighlightedCamera] = useState(null)
   const [iconColor, setIconColor] = useState('black')
   const mapRef = useRef(null)
 
-  // Для видео диалога
   const [openVideoDialog, setOpenVideoDialog] = useState(false)
   const [cameraForVideo, setCameraForVideo] = useState(null)
 
-  // Для диалога добавления камер по координатам
   const [openAddByCoordsDialog, setOpenAddByCoordsDialog] = useState(false)
-  const [cameraUrlByCoords, setCameraUrlByCoords] = useState('')
-  const [coordinates, setCoordinates] = useState({ lat: '', lng: '' })
   const [fileError, setFileError] = useState('')
 
-  // Для диалога удаления
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false)
   const [cameraToDelete, setCameraToDelete] = useState(null)
 
-  // Для Snackbar с новыми камерами
   const [newCameras, setNewCameras] = useState([])
   const [snackbarOpen, setSnackbarOpen] = useState(false)
   const [hovered, setHovered] = useState(false)
 
-  // Для моргания маркера
   const [blinkingCamera, setBlinkingCamera] = useState(null)
 
-  // Функция для открытия диалога добавления камер по координатам
-  const handleOpenAddByCoordsDialog = () => {
-    setOpenAddByCoordsDialog(true)
-  }
-
-  // Функция для закрытия диалога добавления камер по координатам
-  const handleCloseAddByCoordsDialog = () => {
-    setOpenAddByCoordsDialog(false)
-    setCameraUrlByCoords('')
-    setCoordinates({ lat: '', lng: '' })
-    setFileError('') // Очищаем ошибку
-  }
-
-  // Добавление камеры по координатам
-  const handleAddCameraByCoords = (camera) => {
-    setCameraViews((prev) => [...prev, camera])
-  }
-
-  // Добавление камер из файла
-  const handleAddCamerasByFile = (cameras) => {
-    setCameraViews((prev) => [...prev, ...cameras])
-    setNewCameras(cameras) // Сохраняем новые камеры для Snackbar
-    setSnackbarOpen(true) // Открываем Snackbar
-  }
-
-  // Открытие диалога удаления
-  const handleOpenDeleteDialog = (camera) => {
-    setCameraToDelete(camera) // Сохраняем информацию о камере
-    setOpenDeleteDialog(true) // Открываем диалог
-  }
-
-  // Закрытие диалога удаления
-  const handleCloseDeleteDialog = () => {
-    setCameraToDelete(null) // Очищаем текущую камеру
-    setOpenDeleteDialog(false) // Закрываем диалог
-  }
-
-  // Подтверждение удаления камеры
-  const handleConfirmDeleteCamera = () => {
-    setCameraViews((prev) =>
-      prev.filter(
-        (existingCamera) => existingCamera.rtspUrl !== cameraToDelete.rtspUrl
-      )
-    )
-    setCameraToDelete(null) // Очищаем текущую камеру
-    setOpenDeleteDialog(false) // Закрываем диалог
-  }
-
-  // Обработчик клавиши "Escape"
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        if (openDialog) {
-          setOpenDialog(false) // Закрытие диалога добавления камеры
-        } else if (point) {
-          setPoint(null) // Сброс точки выбора
-        }
+  // Примеры функций работы с Redux:
+  const handleAddCamera = () => {
+    if (cameraUrl.trim() && point) {
+      const newCamera = {
+        start: point,
+        rtspUrl: cameraUrl.trim(),
       }
-    }
 
-    window.addEventListener('keydown', handleKeyDown) // Добавление обработчика события
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown) // Очистка обработчика при размонтировании
-    }
-  }, [openDialog, point])
+      // Если камера с такими данными уже есть, можно вывести ошибку
+      const exists = cameraViews.some(
+        (camera) =>
+          camera.rtspUrl === newCamera.rtspUrl &&
+          camera.start.lat === newCamera.start.lat &&
+          camera.start.lng === newCamera.start.lng
+      )
+      if (exists) {
+        setFileError('Камера с такими координатами уже существует.')
+        return
+      }
 
-  // Открытие видео по двойному клику
+      dispatch(addCamera(newCamera))
+      setCameraUrl('')
+      setPoint(null)
+      setOpenDialog(false)
+    }
+  }
+
+  const handleAddCamerasByFile = (cameras) => {
+    dispatch(addCameras(cameras))
+    setNewCameras(cameras)
+    setSnackbarOpen(true)
+  }
+
+  const handleConfirmDeleteCamera = () => {
+    dispatch(removeCamera(cameraToDelete))
+    setCameraToDelete(null)
+    setOpenDeleteDialog(false)
+  }
+
   const handleOpenVideoDialog = (camera) => {
     setCameraForVideo(camera)
     setOpenVideoDialog(true)
@@ -120,58 +89,30 @@ function App() {
     setOpenVideoDialog(false)
   }
 
-  // Добавление камеры через диалог
-  const handleAddCamera = () => {
-    if (cameraUrl.trim() && point) {
-      const newCamera = {
-        start: point,
-        rtspUrl: cameraUrl.trim(),
+  // Пример логики для обработки нажатия клавиши Escape
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        if (openDialog) {
+          setOpenDialog(false)
+        } else if (point) {
+          setPoint(null)
+        }
       }
-
-      // Проверяем, существует ли уже такая камера
-      const existingCamera = cameraViews.find(
-        (camera) =>
-          camera.rtspUrl === newCamera.rtspUrl &&
-          camera.start.lat === newCamera.start.lat &&
-          camera.start.lng === newCamera.start.lng
-      )
-
-      if (existingCamera) {
-        setFileError('Камера с такими координатами уже существует.')
-        return
-      }
-
-      setCameraViews((prev) => [...prev, newCamera])
-      setCameraUrl('')
-      setPoint(null)
-      setOpenDialog(false)
     }
-  }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [openDialog, point])
 
-  // Получение количества камер
-  const cameraCount = cameraViews.length
-
-  // Закрытие Snackbar
   const handleSnackbarClose = (event, reason) => {
-    if (reason === 'clickaway') {
-      return
-    }
-    if (!hovered) {
-      setSnackbarOpen(false)
-    }
+    if (reason === 'clickaway') return
+    if (!hovered) setSnackbarOpen(false)
   }
 
-  // Обработка наведения мыши на Snackbar
-  const handleMouseEnter = () => {
-    setHovered(true)
-  }
+  const handleMouseEnter = () => setHovered(true)
+  const handleMouseLeave = () => setHovered(false)
 
-  // Обработка ухода мыши с Snackbar
-  const handleMouseLeave = () => {
-    setHovered(false)
-  }
-
-  // Функция для начала моргания маркера
+  // Пример логики для моргания маркера (изменение цвета iconColor)
   const startBlinkingMarker = (camera) => {
     setBlinkingCamera(camera)
     const timer = setInterval(() => {
@@ -188,30 +129,30 @@ function App() {
     <div style={{ height: '100vh' }}>
       <Navbar
         onMenuClick={() => setDrawerOpen(true)}
-        onAddByCoordsClick={handleOpenAddByCoordsDialog}
-        cameraCount={cameraCount} // Передаем количество камер
+        onAddByCoordsClick={() => setOpenAddByCoordsDialog(true)}
+        cameraCount={cameraViews.length}
       />
+
       <AddCameraByCoordsDialog
         openDialog={openAddByCoordsDialog}
-        handleDialogClose={handleCloseAddByCoordsDialog}
+        handleDialogClose={() => setOpenAddByCoordsDialog(false)}
         handleAddCamerasByFile={handleAddCamerasByFile}
-        handleAddCameraByCoords={handleAddCameraByCoords}
-        cameraViews={cameraViews} // Передаем существующие камеры
-        fileError={fileError} // Передаем ошибку
-        setFileError={setFileError} // Передаем функцию для установки ошибки
+        handleAddCameraByCoords={(camera) => dispatch(addCamera(camera))}
+        cameraViews={cameraViews}
+        fileError={fileError}
+        setFileError={setFileError}
       />
+
       <div style={{ marginTop: 64, height: 'calc(100% - 64px)' }}>
         <CameraMap
           point={point}
           setPoint={setPoint}
           cameraViews={cameraViews}
-          highlightedCamera={highlightedCamera}
           iconColor={iconColor}
           mapRef={mapRef}
-          openDialog={openDialog}
           handleDialogOpen={() => setOpenDialog(true)}
           handleOpenVideoDialog={handleOpenVideoDialog}
-          blinkingCamera={blinkingCamera} // Передаем текущий моргающий маркер
+          blinkingCamera={blinkingCamera}
         />
       </div>
 
@@ -219,13 +160,15 @@ function App() {
         drawerOpen={drawerOpen}
         onCloseDrawer={() => setDrawerOpen(false)}
         cameraViews={cameraViews}
-        highlightedCamera={highlightedCamera}
         iconColor={iconColor}
         search={search}
         setSearch={setSearch}
-        handleDeleteCamera={handleOpenDeleteDialog} // Открытие диалога удаления
-        startBlinkingMarker={startBlinkingMarker} // Передаем функцию для начала моргания маркера
-        blinkingCamera={blinkingCamera} // Передаем текущий моргающий маркер
+        handleDeleteCamera={(camera) => {
+          setCameraToDelete(camera)
+          setOpenDeleteDialog(true)
+        }}
+        startBlinkingMarker={startBlinkingMarker}
+        blinkingCamera={blinkingCamera}
       />
 
       <AddCameraDialog
@@ -251,11 +194,10 @@ function App() {
       <DeleteCameraDialog
         open={openDeleteDialog}
         camera={cameraToDelete}
-        onClose={handleCloseDeleteDialog}
+        onClose={() => setOpenDeleteDialog(false)}
         onConfirm={handleConfirmDeleteCamera}
       />
 
-      {/* Snackbar для отображения новых камер */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={3000}
@@ -265,15 +207,15 @@ function App() {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         ContentProps={{
           sx: {
-            width: '40vw', // Ширина Snackbar составляет 50% от ширины экрана
-            maxWidth: '40vw', // Максимальная ширина
+            width: '40vw',
+            maxWidth: '40vw',
           },
         }}
       >
         <Alert
           onClose={handleSnackbarClose}
           severity="success"
-          sx={{ width: '100%', maxHeight: '50vh', overflowY: 'auto' }} // Ограничение высоты и добавление прокрутки
+          sx={{ width: '100%', maxHeight: '50vh', overflowY: 'auto' }}
         >
           Добавлены новые камеры:
           <ul>
