@@ -7,6 +7,7 @@ import {
   Button,
   Box,
   TextField,
+  Typography,
 } from '@mui/material'
 
 function AddCameraDialog({
@@ -15,6 +16,7 @@ function AddCameraDialog({
   cameraUrl,
   setCameraUrl,
   handleAddCamera,
+  fileError,
 }) {
   return (
     <Dialog
@@ -32,6 +34,11 @@ function AddCameraDialog({
           Введите RTSP-ссылку камеры (например,
           rtsp://operator:operator@10.0.190.6/live/619).
         </Box>
+        {fileError && (
+          <Typography variant="body2" color="error" mt={2}>
+            {fileError}
+          </Typography>
+        )}
         <TextField
           label="Ссылка (RTSP)"
           fullWidth
@@ -42,6 +49,7 @@ function AddCameraDialog({
           placeholder="Введите RTSP ссылку камеры"
         />
       </DialogContent>
+
       <DialogActions>
         <Button onClick={handleDialogClose} color="secondary">
           Отмена

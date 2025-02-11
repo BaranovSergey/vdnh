@@ -21,6 +21,7 @@ function AddCameraByCoordsDialog({
   cameraViews,
   fileError,
   setFileError,
+  setNewCameras,
 }) {
   const [dragActive, setDragActive] = useState(false)
   const [cameraUrlByCoords, setCameraUrlByCoords] = useState('')
@@ -67,30 +68,27 @@ function AddCameraByCoordsDialog({
           const cameras = json.slice(1).map((row) => {
             if (!row[0] || !row[1]) {
               throw new Error(
-                `Некорректные данные в строке: ${JSON.stringify(
-                  row
-                )}. Ожидается RTSP и координаты.`
+                `Некорректные данные в строке: ${JSON.stringify(row)}`
               )
             }
+
             const rtspUrl = row[0].trim()
             const coordinates = row[1].trim()
             const [latStr, lngStr] = coordinates.split(',')
+
             if (!latStr || !lngStr) {
-              throw new Error(
-                `Некорректные координаты: ${coordinates}. Ожидается два числа через запятую.`
-              )
+              throw new Error(`Некорректные координаты: ${coordinates}`)
             }
+
             const lat = parseFloat(latStr)
             const lng = parseFloat(lngStr)
             if (isNaN(lat) || isNaN(lng)) {
-              throw new Error(
-                `Некорректные координаты: ${coordinates}. Не удалось преобразовать в числа.`
-              )
+              throw new Error(`Некорректные координаты: ${coordinates}`)
             }
+
             return {
               rtspUrl,
               start: { lat, lng },
-              end: null,
             }
           })
 
@@ -130,14 +128,14 @@ function AddCameraByCoordsDialog({
       const newCamera = {
         rtspUrl: cameraUrlByCoords.trim(),
         start: { lat, lng },
-        end: null,
       }
 
+      // Проверка на существование камеры
       const exists = cameraViews.find(
         (camera) =>
           camera.rtspUrl === newCamera.rtspUrl &&
-          camera.start.lat === newCamera.start.lat &&
-          camera.start.lng === newCamera.start.lng
+          camera.start?.lat === newCamera.start.lat &&
+          camera.start?.lng === newCamera.start.lng
       )
       if (exists) {
         setFileError('Камера с такими координатами уже существует.')
@@ -153,7 +151,8 @@ function AddCameraByCoordsDialog({
 
   const handleSnackbarClose = (event, reason) => {
     if (reason === 'clickaway') return
-    if (!hovered) setSnackbarOpen(false)
+    setSnackbarOpen(false)
+    setNewCameras([]) // ✅ Закрываем Snackbar
   }
 
   const handleMouseEnter = () => setHovered(true)
@@ -195,14 +194,22 @@ function AddCameraByCoordsDialog({
             style={{ display: 'none' }}
             id="file-input"
             onChange={(e) => {
+              console.log('onChange fired')
               const file = e.target.files[0]
               if (file && file.name.endsWith('.xlsx')) {
+                console.log('Обработка файла:', file.name)
                 handleFile(file)
+                setTimeout(() => {
+                  e.target.value = ''
+                  console.log('Input value reset')
+                }, 0)
               } else {
+                console.log('Неверный файл')
                 setFileError('Пожалуйста, загрузите файл в формате .xlsx')
               }
             }}
           />
+
           <label htmlFor="file-input">
             <Button variant="contained" component="span">
               Выберите файл
@@ -265,12 +272,33 @@ function AddCameraByCoordsDialog({
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={3000}
-        onClose={handleSnackbarClose}
+        onClose={handleSnackbarClose} // ✅ Теперь точно работает
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        ContentProps={{
+          sx: {
+            width: '40vw',
+            maxWidth: '40vw',
+          },
+        }}
       >
-        <Alert onClose={handleSnackbarClose} severity="success">
+        <Alert
+          severity="success"
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation() // ✅ Останавливаем всплытие
+                handleSnackbarClose()
+              }}
+            >
+              ✖
+            </Button>
+          }
+          sx={{ width: '100%', maxHeight: '50vh', overflowY: 'auto' }}
+        >
           Камеры успешно добавлены!
         </Alert>
       </Snackbar>

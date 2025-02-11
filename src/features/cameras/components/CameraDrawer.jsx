@@ -24,15 +24,14 @@ function CameraDrawer({
 }) {
   // Вычисляем ширину дравера в зависимости от длины самой длинной ссылки
   const drawerWidth = useMemo(() => {
+    if (!cameraViews || cameraViews.length === 0) return 300
+
     const longestLink = cameraViews.reduce(
       (max, camera) =>
-        camera.rtspUrl.length > max.length ? camera.rtspUrl : max,
+        camera?.rtspUrl?.length > max.length ? camera.rtspUrl : max,
       ''
     )
-    const approxCharWidth = 8
-    const padding = 100
-    const calculatedWidth = longestLink.length * approxCharWidth + padding
-    return Math.min(Math.max(calculatedWidth, 300), 600)
+    return Math.min(Math.max(longestLink.length * 8 + 100, 300), 600)
   }, [cameraViews])
 
   return (
@@ -63,7 +62,9 @@ function CameraDrawer({
         <List>
           {cameraViews
             .filter((camera) =>
-              camera.rtspUrl.toLowerCase().includes(search.toLowerCase())
+              (camera.rtspUrl || '')
+                .toLowerCase()
+                .includes(search.toLowerCase())
             )
             .map((camera, index) => (
               <ListItem
@@ -90,12 +91,15 @@ function CameraDrawer({
                 <Box sx={{ display: 'flex', gap: 1 }}>
                   <Button
                     size="small"
-                    onClick={() => startBlinkingMarker(camera)}
+                    onClick={() => startBlinkingMarker(camera)} // ✅ Теперь передаём конкретную камеру
                     variant="outlined"
-                    sx={{ minWidth: 'auto' }}
+                    sx={{
+                      minWidth: 'auto',
+                    }}
                   >
                     Обнаружить
                   </Button>
+
                   <Button
                     size="small"
                     onClick={() => handleDeleteCamera(camera)}

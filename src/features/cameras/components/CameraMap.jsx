@@ -12,8 +12,8 @@ import { renderToString } from 'react-dom/server'
 import VideocamIcon from '@mui/icons-material/Videocam'
 import MarkerClusterGroup from 'react-leaflet-markercluster'
 
-// Функция для создания иконки камеры с заданным цветом
-const createCameraIcon = (color) =>
+// Функция создания иконки камеры
+export const createCameraIcon = (color) =>
   new L.DivIcon({
     className: 'custom-div-icon',
     html: renderToString(<VideocamIcon style={{ color, fontSize: '24px' }} />),
@@ -21,7 +21,7 @@ const createCameraIcon = (color) =>
     iconAnchor: [12, 12],
   })
 
-// Обработчик клика по карте, устанавливающий точку и открывающий диалог
+// Обработчик клика по карте (создание камеры)
 function MapClickHandler({ setPoint, handleDialogOpen }) {
   useMapEvents({
     click(e) {
@@ -37,16 +37,25 @@ function CameraMap({
   point,
   setPoint,
   cameraViews,
-  iconColor,
   mapRef,
   handleDialogOpen,
   handleOpenVideoDialog,
-  blinkingCamera,
+  search,
+  startBlinkingMarker,
+  markerRefs, // ✅ Передаём markerRefs из App.jsx
 }) {
+  // ✅ Переместили `filteredCameras` внутрь функции
+  const filteredCameras = cameraViews
+    .filter((camera) => camera.rtspUrl) // ✅ Фильтруем только камеры с URL
+    .filter((camera) =>
+      camera.rtspUrl.toLowerCase().includes(search?.toLowerCase() || '')
+    ) // ✅ Безопасная проверка search
+
   return (
     <MapContainer
       center={[55.83, 37.629]}
       zoom={16}
+      attributionControl={false}
       doubleClickZoom={false}
       className="leaflet-container"
       style={{ height: '100%', zIndex: 2 }}
@@ -70,33 +79,39 @@ function CameraMap({
       />
 
       <MarkerClusterGroup
+        key={cameraViews.map((camera) => camera.id).join('-')}
         distance={40}
         spiderfyOnMaxZoom={true}
         showCoverageOnHover={false}
         zoomToBoundsOnClick={true}
         disableClusteringAtZoom={18}
       >
-        {cameraViews.map((view, index) => {
-          // Если данный маркер является мигающим, используем iconColor, иначе 'black'
-          const markerColor =
-            blinkingCamera?.rtspUrl === view.rtspUrl ? iconColor : 'black'
-
-          // Извлекаем часть RTSP ссылки для отображения в Tooltip
-          const rtspDetails = view.rtspUrl.includes('@')
-            ? view.rtspUrl.split('@')[1]
-            : 'Данные отсутствуют'
-
+        {filteredCameras.map((view) => {
+          // проверка и создание маркера
+          if (
+            !view ||
+            !view.start ||
+            typeof view.start.lat !== 'number' ||
+            typeof view.start.lng !== 'number'
+          ) {
+            console.error('Ошибка: некорректные данные камеры', view)
+            return null
+          }
+          if (!markerRefs.current[view.rtspUrl]) {
+            markerRefs.current[view.rtspUrl] = React.createRef()
+          }
           return (
             <Marker
-              key={index}
+              key={view.id} // лучше использовать уникальное значение id
               position={[view.start.lat, view.start.lng]}
-              icon={createCameraIcon(markerColor)}
+              icon={createCameraIcon('black')}
+              ref={markerRefs.current[view.rtspUrl]}
               eventHandlers={{
                 click: () => handleOpenVideoDialog(view),
               }}
             >
               <Tooltip>
-                <div>{rtspDetails}</div>
+                <div>{view.rtspUrl}</div>
               </Tooltip>
             </Marker>
           )
