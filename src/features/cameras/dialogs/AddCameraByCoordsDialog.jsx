@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import {
   Dialog,
   DialogTitle,
@@ -13,114 +13,109 @@ import {
 } from '@mui/material'
 import * as XLSX from 'xlsx'
 
-function AddCameraByCoordsDialog({
+const AddCameraByCoordsDialog = ({
   openDialog,
   handleDialogClose,
   handleAddCamerasByFile,
   handleAddCameraByCoords,
-  cameraViews,
+  cameraViews = [],
   fileError,
   setFileError,
   setNewCameras,
-}) {
+}) => {
   const [dragActive, setDragActive] = useState(false)
   const [cameraUrlByCoords, setCameraUrlByCoords] = useState('')
   const [coordinates, setCoordinates] = useState({ lat: '', lng: '' })
   const [snackbarOpen, setSnackbarOpen] = useState(false)
-  const [hovered, setHovered] = useState(false)
 
-  // Обработка перетаскивания файла
-  const handleDrag = (e) => {
+  const handleDrag = useCallback((e) => {
     e.preventDefault()
     e.stopPropagation()
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true)
-    } else if (e.type === 'dragleave') {
+    setDragActive(e.type === 'dragenter' || e.type === 'dragover')
+  }, [])
+
+  const handleDrop = useCallback(
+    (e) => {
+      e.preventDefault()
+      e.stopPropagation()
       setDragActive(false)
-    }
-  }
-
-  // Обработка загрузки файла
-  const handleDrop = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setDragActive(false)
-    const file = e.dataTransfer.files[0]
-    if (file && file.name.endsWith('.xlsx')) {
-      handleFile(file)
-    } else {
-      setFileError('Пожалуйста, загрузите файл в формате .xlsx')
-    }
-  }
-
-  // Чтение и обработка Excel-файла
-  const handleFile = (file) => {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const data = new Uint8Array(e.target.result)
-      const workbook = XLSX.read(data, { type: 'array' })
-      const sheetName = workbook.SheetNames[0]
-      const sheet = workbook.Sheets[sheetName]
-      const json = XLSX.utils.sheet_to_json(sheet, { header: 1 })
-
-      if (json.length > 0 && json[0].length >= 2) {
-        try {
-          const cameras = json.slice(1).map((row) => {
-            if (!row[0] || !row[1]) {
-              throw new Error(
-                `Некорректные данные в строке: ${JSON.stringify(row)}`
-              )
-            }
-
-            const rtspUrl = row[0].trim()
-            const coordinates = row[1].trim()
-            const [latStr, lngStr] = coordinates.split(',')
-
-            if (!latStr || !lngStr) {
-              throw new Error(`Некорректные координаты: ${coordinates}`)
-            }
-
-            const lat = parseFloat(latStr)
-            const lng = parseFloat(lngStr)
-            if (isNaN(lat) || isNaN(lng)) {
-              throw new Error(`Некорректные координаты: ${coordinates}`)
-            }
-
-            return {
-              rtspUrl,
-              start: { lat, lng },
-            }
-          })
-
-          // Фильтруем существующие камеры
-          const existingUrls = new Set(
-            cameraViews.map((camera) => camera.rtspUrl)
-          )
-          const newCameras = cameras.filter(
-            (camera) => !existingUrls.has(camera.rtspUrl)
-          )
-
-          if (newCameras.length === 0) {
-            setFileError('Все камеры уже добавлены.')
-            return
-          }
-
-          handleAddCamerasByFile(newCameras)
-          setSnackbarOpen(true)
-          handleDialogClose()
-        } catch (error) {
-          setFileError(error.message)
-        }
+      const file = e.dataTransfer.files[0]
+      if (file && file.name.endsWith('.xlsx')) {
+        processFile(file)
       } else {
-        setFileError(
-          'Неверный формат файла. Ожидается RTSP, Широта и Долгота через запятую.'
-        )
+        setFileError('Пожалуйста, загрузите файл в формате .xlsx')
       }
-    }
-    reader.readAsArrayBuffer(file)
-  }
+    },
+    [setFileError]
+  )
 
-  // Добавление камеры по координатам
+  const processFile = useCallback(
+    (file) => {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const data = new Uint8Array(e.target.result)
+        const workbook = XLSX.read(data, { type: 'array' })
+        const sheetName = workbook.SheetNames[0]
+        const sheet = workbook.Sheets[sheetName]
+        const json = XLSX.utils.sheet_to_json(sheet, { header: 1 })
+
+        if (json.length > 0 && json[0].length >= 2) {
+          try {
+            const cameras = json.slice(1).map((row) => {
+              if (!row[0] || !row[1]) {
+                throw new Error(
+                  `Некорректные данные в строке: ${JSON.stringify(row)}`
+                )
+              }
+              const rtspUrl = row[0].trim()
+              const coords = row[1].trim()
+              const [latStr, lngStr] = coords.split(',')
+              if (!latStr || !lngStr) {
+                throw new Error(`Некорректные координаты: ${coords}`)
+              }
+              const lat = parseFloat(latStr)
+              const lng = parseFloat(lngStr)
+              if (isNaN(lat) || isNaN(lng)) {
+                throw new Error(`Некорректные координаты: ${coords}`)
+              }
+              return {
+                rtspUrl,
+                start: { lat, lng },
+                // Не передаём direction
+              }
+            })
+
+            // Фильтруем уже добавленные камеры
+            const existingUrls = new Set(
+              cameraViews.map((camera) => camera.rtspUrl)
+            )
+            const newCameras = cameras.filter(
+              (camera) => !existingUrls.has(camera.rtspUrl)
+            )
+
+            if (newCameras.length === 0) {
+              setFileError('Все камеры уже добавлены.')
+              return
+            }
+
+            handleAddCamerasByFile(newCameras)
+            setSnackbarOpen(true)
+            handleDialogClose()
+          } catch (error) {
+            setFileError(error.message)
+          }
+        } else {
+          setFileError(
+            'Неверный формат файла. Ожидается RTSP, Широта и Долгота через запятую.'
+          )
+        }
+      }
+      reader.readAsArrayBuffer(file)
+    },
+    [cameraViews, handleAddCamerasByFile, setFileError, handleDialogClose]
+  )
+
+  // Добавление камеры вручную
   const handleAddCameraByCoordsSubmit = () => {
     const lat = parseFloat(coordinates.lat)
     const lng = parseFloat(coordinates.lng)
@@ -128,14 +123,14 @@ function AddCameraByCoordsDialog({
       const newCamera = {
         rtspUrl: cameraUrlByCoords.trim(),
         start: { lat, lng },
+        // direction не указываем
       }
 
-      // Проверка на существование камеры
-      const exists = cameraViews.find(
+      const exists = cameraViews.some(
         (camera) =>
           camera.rtspUrl === newCamera.rtspUrl &&
-          camera.start?.lat === newCamera.start.lat &&
-          camera.start?.lng === newCamera.start.lng
+          camera.start.lat === newCamera.start.lat &&
+          camera.start.lng === newCamera.start.lng
       )
       if (exists) {
         setFileError('Камера с такими координатами уже существует.')
@@ -152,11 +147,8 @@ function AddCameraByCoordsDialog({
   const handleSnackbarClose = (event, reason) => {
     if (reason === 'clickaway') return
     setSnackbarOpen(false)
-    setNewCameras([]) // ✅ Закрываем Snackbar
+    setNewCameras([])
   }
-
-  const handleMouseEnter = () => setHovered(true)
-  const handleMouseLeave = () => setHovered(false)
 
   return (
     <Dialog
@@ -171,8 +163,6 @@ function AddCameraByCoordsDialog({
           Вы можете добавить камеры либо через загрузку файла Excel, либо
           вручную.
         </Typography>
-
-        {/* Дропзона для файла */}
         <Box
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
@@ -185,7 +175,6 @@ function AddCameraByCoordsDialog({
             textAlign: 'center',
             cursor: 'pointer',
             marginBottom: '20px',
-            ...(dragActive && { borderColor: '#000' }),
           }}
         >
           <input
@@ -194,36 +183,28 @@ function AddCameraByCoordsDialog({
             style={{ display: 'none' }}
             id="file-input"
             onChange={(e) => {
-              console.log('onChange fired')
               const file = e.target.files[0]
               if (file && file.name.endsWith('.xlsx')) {
-                console.log('Обработка файла:', file.name)
-                handleFile(file)
+                processFile(file)
                 setTimeout(() => {
                   e.target.value = ''
-                  console.log('Input value reset')
                 }, 0)
               } else {
-                console.log('Неверный файл')
                 setFileError('Пожалуйста, загрузите файл в формате .xlsx')
               }
             }}
           />
-
           <label htmlFor="file-input">
             <Button variant="contained" component="span">
               Выберите файл
             </Button>
           </label>
         </Box>
-
         {fileError && (
           <Typography variant="body2" color="error" mt={2}>
             {fileError}
           </Typography>
         )}
-
-        {/* Форма для ручного ввода */}
         <Typography variant="h6" gutterBottom>
           Добавить камеру вручную
         </Typography>
@@ -272,15 +253,10 @@ function AddCameraByCoordsDialog({
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={3000}
-        onClose={handleSnackbarClose} // ✅ Теперь точно работает
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        onClose={handleSnackbarClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         ContentProps={{
-          sx: {
-            width: '40vw',
-            maxWidth: '40vw',
-          },
+          sx: { width: '40vw', maxWidth: '40vw' },
         }}
       >
         <Alert
@@ -290,7 +266,7 @@ function AddCameraByCoordsDialog({
               color="inherit"
               size="small"
               onClick={(e) => {
-                e.stopPropagation() // ✅ Останавливаем всплытие
+                e.stopPropagation()
                 handleSnackbarClose()
               }}
             >

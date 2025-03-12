@@ -10,22 +10,20 @@ import {
   Typography,
 } from '@mui/material'
 
-function AddCameraDialog({
+const AddCameraDialog = ({
   openDialog,
   handleDialogClose,
   cameraUrl,
   setCameraUrl,
   handleAddCamera,
   fileError,
-}) {
+}) => {
   return (
     <Dialog
       open={openDialog}
       onClose={handleDialogClose}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          handleAddCamera()
-        }
+        if (e.key === 'Enter') handleAddCamera()
       }}
     >
       <DialogTitle>Добавить камеру</DialogTitle>
@@ -49,7 +47,6 @@ function AddCameraDialog({
           placeholder="Введите RTSP ссылку камеры"
         />
       </DialogContent>
-
       <DialogActions>
         <Button onClick={handleDialogClose} color="secondary">
           Отмена

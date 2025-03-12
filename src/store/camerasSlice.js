@@ -1,23 +1,23 @@
-// src/store/camerasSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import axios from 'axios'
 
 const API_URL = 'http://localhost:5001/api/cameras'
 
-// Thunk для получения камер
+// Получение камер с сервера
 export const fetchCameras = createAsyncThunk(
   'cameras/fetchCameras',
   async (_, { rejectWithValue }) => {
     try {
       const response = await axios.get(API_URL)
-      // Маппим данные: если сервер возвращает rtspUrl, используем его, иначе (если rtspurl) – подставляем
       return response.data.map((camera) => ({
         id: camera.id,
-        rtspUrl: camera.rtspUrl || camera.rtspurl, // убедитесь, что здесь корректное имя поля
+        rtspUrl: camera.rtspUrl || camera.rtspurl,
         start: camera.start || {
           lat: Number(camera.lat),
           lng: Number(camera.lng),
         },
+        online: camera.online,
+        direction: camera.direction,
       }))
     } catch (err) {
       return rejectWithValue(err.response.data)
@@ -25,15 +25,16 @@ export const fetchCameras = createAsyncThunk(
   }
 )
 
-// Thunk для добавления одной камеры
+// Добавление одной камеры
 export const addCameraToAPI = createAsyncThunk(
   'cameras/addCamera',
-  async ({ rtspUrl, start }, { rejectWithValue }) => {
+  async ({ rtspUrl, start, direction }, { rejectWithValue }) => {
     try {
       const response = await axios.post(API_URL, {
         rtspUrl,
         lat: start.lat,
         lng: start.lng,
+        direction,
       })
       const data = response.data
       if (!data.start) {
@@ -46,7 +47,7 @@ export const addCameraToAPI = createAsyncThunk(
   }
 )
 
-// Thunk для массового добавления камер (если используете его)
+// Массовое добавление камер
 export const addCamerasToAPI = createAsyncThunk(
   'cameras/addCameras',
   async (cameras, { rejectWithValue }) => {
@@ -57,6 +58,7 @@ export const addCamerasToAPI = createAsyncThunk(
             rtspUrl: camera.rtspUrl,
             lat: camera.start.lat,
             lng: camera.start.lng,
+            direction: camera.direction,
           })
         )
       )
@@ -74,13 +76,30 @@ export const addCamerasToAPI = createAsyncThunk(
   }
 )
 
-// Thunk для удаления камеры (если нужен)
+// Удаление камеры
 export const deleteCameraFromAPI = createAsyncThunk(
   'cameras/deleteCamera',
   async (id, { rejectWithValue }) => {
     try {
       await axios.delete(`${API_URL}/${id}`)
       return id
+    } catch (err) {
+      return rejectWithValue(err.response.data)
+    }
+  }
+)
+
+// Обновление направления камеры
+export const updateCameraDirection = createAsyncThunk(
+  'cameras/updateCameraDirection',
+  async ({ id, direction }, { rejectWithValue }) => {
+    try {
+      const response = await axios.patch(`${API_URL}/${id}`, { direction })
+      const data = response.data
+      if (!data.start) {
+        data.start = { lat: Number(data.lat), lng: Number(data.lng) }
+      }
+      return data
     } catch (err) {
       return rejectWithValue(err.response.data)
     }
@@ -97,7 +116,6 @@ const camerasSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      // Получение камер
       .addCase(fetchCameras.pending, (state) => {
         state.status = 'loading'
       })
@@ -109,19 +127,24 @@ const camerasSlice = createSlice({
         state.status = 'failed'
         state.error = action.payload
       })
-      // Добавление одной камеры
       .addCase(addCameraToAPI.fulfilled, (state, action) => {
         state.cameraViews.push(action.payload)
       })
-      // Массовое добавление камер
       .addCase(addCamerasToAPI.fulfilled, (state, action) => {
         state.cameraViews.push(...action.payload)
       })
-      // Удаление камеры
       .addCase(deleteCameraFromAPI.fulfilled, (state, action) => {
         state.cameraViews = state.cameraViews.filter(
           (camera) => camera.id !== action.payload
         )
+      })
+      .addCase(updateCameraDirection.fulfilled, (state, action) => {
+        const index = state.cameraViews.findIndex(
+          (camera) => camera.id === action.payload.id
+        )
+        if (index !== -1) {
+          state.cameraViews[index] = action.payload
+        }
       })
   },
 })

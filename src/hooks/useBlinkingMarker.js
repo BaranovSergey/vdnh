@@ -1,15 +1,20 @@
-import { useState } from 'react'
+import { useRef, useCallback } from 'react'
 import { createCameraIcon } from '../features/cameras/components/CameraMap'
 
 const useBlinkingMarker = () => {
-  const [blinkingCamera, setBlinkingCamera] = useState(null)
+  // Используем ref для хранения таймера
+  const timerRef = useRef(null)
 
-  const startBlinkingMarker = (camera, markerRefs) => {
+  const startBlinkingMarker = useCallback((camera, markerRefs) => {
     const markerRef = markerRefs.current[camera.rtspUrl]
     if (!markerRef?.current) return
 
     let isRed = false
-    const timer = setInterval(() => {
+
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+    }
+    timerRef.current = setInterval(() => {
       if (markerRef.current) {
         markerRef.current.setIcon(createCameraIcon(isRed ? 'red' : 'black'))
       }
@@ -17,14 +22,15 @@ const useBlinkingMarker = () => {
     }, 100)
 
     setTimeout(() => {
-      clearInterval(timer)
+      clearInterval(timerRef.current)
+      timerRef.current = null
       if (markerRef.current) {
         markerRef.current.setIcon(createCameraIcon('black'))
       }
     }, 3000)
-  }
+  }, [])
 
-  return { blinkingCamera, setBlinkingCamera, startBlinkingMarker }
+  return { startBlinkingMarker }
 }
 
 export default useBlinkingMarker

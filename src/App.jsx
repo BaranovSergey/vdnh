@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import Navbar from './features/layout/Navbar'
 import CameraMap from './features/cameras/components/CameraMap'
@@ -8,13 +8,31 @@ import {
   fetchCameras,
   addCameraToAPI,
   deleteCameraFromAPI,
+  addCamerasToAPI,
+  updateCameraDirection,
 } from './store/camerasSlice'
 import CameraDialogs from './features/cameras/dialogs/CameraDialogs'
 import NewCamerasSnackbar from './features/cameras/snackbar/NewCamerasSnackbar'
 import useEscapeKey from './hooks/useEscapeKey'
 import useBlinkingMarker from './hooks/useBlinkingMarker'
 import './App.css'
-import { addCamerasToAPI } from './store/camerasSlice'
+
+// Функция для вычисления азимута (в градусах) между двумя точками
+const computeBearing = (lat1, lng1, lat2, lng2) => {
+  const toRad = (deg) => (deg * Math.PI) / 180
+  const toDeg = (rad) => (rad * 180) / Math.PI
+
+  const φ1 = toRad(lat1)
+  const φ2 = toRad(lat2)
+  const Δλ = toRad(lng2 - lng1)
+
+  const y = Math.sin(Δλ) * Math.cos(φ2)
+  const x =
+    Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ)
+  let bearing = toDeg(Math.atan2(y, x))
+  bearing = (bearing + 360) % 360
+  return bearing
+}
 
 function App() {
   const cameraViews = useSelector((state) => state.cameras.cameraViews)
@@ -25,39 +43,34 @@ function App() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [cameraUrl, setCameraUrl] = useState('')
   const [search, setSearch] = useState('')
-  const [iconColor] = useState('black')
   const mapRef = useRef(null)
-
   const [openVideoDialog, setOpenVideoDialog] = useState(false)
   const [cameraForVideo, setCameraForVideo] = useState(null)
-
   const [openAddByCoordsDialog, setOpenAddByCoordsDialog] = useState(false)
   const [fileError, setFileError] = useState('')
-
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false)
   const [cameraToDelete, setCameraToDelete] = useState(null)
-
   const [newCameras, setNewCameras] = useState([])
   const [snackbarOpen, setSnackbarOpen] = useState(false)
-  const [hovered, setHovered] = useState(false)
-
   const markerRefs = useRef({})
-  const { blinkingCamera, startBlinkingMarker } = useBlinkingMarker()
+  const { startBlinkingMarker } = useBlinkingMarker()
 
-  // ✅ Загружаем камеры из API при старте
+  // Состояние для режима задания угла обзора
+  const [angleSettingCamera, setAngleSettingCamera] = useState(null)
+
   useEffect(() => {
     dispatch(fetchCameras())
   }, [dispatch])
 
-  // ✅ Добавление камеры (отправка в API)
-  const handleAddCamera = () => {
+  // Добавляем камеру – не передаём direction, чтобы на сервере сохранилось NULL
+  const handleAddCamera = useCallback(() => {
     if (cameraUrl.trim() && point) {
       const newCamera = {
         rtspUrl: cameraUrl.trim(),
         start: { lat: point.lat, lng: point.lng },
+        // Не указываем direction
       }
 
-      // Проверка на дублирование (на клиенте)
       const exists = cameraViews.find(
         (camera) =>
           camera.rtspUrl.trim().toLowerCase() ===
@@ -81,42 +94,61 @@ function App() {
         setSnackbarOpen(true)
       })
     }
-  }
+  }, [cameraUrl, point, cameraViews, dispatch])
 
-  // ✅ Удаление камеры (API-запрос)
-  const handleConfirmDeleteCamera = () => {
+  const handleConfirmDeleteCamera = useCallback(() => {
     if (cameraToDelete) {
       dispatch(deleteCameraFromAPI(cameraToDelete.id))
       setCameraToDelete(null)
       setOpenDeleteDialog(false)
     }
-  }
+  }, [cameraToDelete, dispatch])
 
-  const handleOpenVideoDialog = (camera) => {
+  const handleOpenVideoDialog = useCallback((camera) => {
     setCameraForVideo(camera)
     setOpenVideoDialog(true)
-  }
+  }, [])
 
-  const handleCloseVideoDialog = () => {
+  const handleCloseVideoDialog = useCallback(() => {
     setCameraForVideo(null)
     setOpenVideoDialog(false)
-  }
+  }, [])
 
-  const handleSnackbarClose = (event, reason) => {
+  const handleSnackbarClose = useCallback((event, reason) => {
     if (reason === 'clickaway') return
     setSnackbarOpen(false)
-  }
+  }, [])
 
-  const handleMouseEnter = () => setHovered(true)
-  const handleMouseLeave = () => setHovered(false)
+  // Режим задания угла: при клике на кнопку "Угол обзора"
+  const handleSetAngle = useCallback((camera) => {
+    setAngleSettingCamera(camera)
+    setOpenVideoDialog(false)
+  }, [])
 
+  // Клик по карте для сохранения финального угла
+  const handleMapClickForAngle = useCallback(
+    (latlng) => {
+      if (!angleSettingCamera) return
+      const { lat, lng } = angleSettingCamera.start
+      const bearing = computeBearing(lat, lng, latlng.lat, latlng.lng)
+      dispatch(
+        updateCameraDirection({ id: angleSettingCamera.id, direction: bearing })
+      )
+      setAngleSettingCamera(null)
+    },
+    [angleSettingCamera, dispatch]
+  )
+
+  // Выход из режимов при Esc
   useEscapeKey(() => {
     if (openDialog) {
       setOpenDialog(false)
     } else if (point) {
       setPoint(null)
+    } else if (angleSettingCamera) {
+      setAngleSettingCamera(null)
     }
-  }, [openDialog, point])
+  }, [openDialog, point, angleSettingCamera])
 
   return (
     <div style={{ height: '100vh' }}>
@@ -125,14 +157,13 @@ function App() {
         onAddByCoordsClick={() => setOpenAddByCoordsDialog(true)}
         cameraCount={cameraViews.length}
       />
-
       <AddCameraByCoordsDialog
         openDialog={openAddByCoordsDialog}
         handleDialogClose={() => setOpenAddByCoordsDialog(false)}
+        // При добавлении камер из файла/координат не передаём direction
         handleAddCamerasByFile={(cameras) => {
           dispatch(addCamerasToAPI(cameras)).then((action) => {
             if (action.payload) {
-              // Обновляем newCameras для Snackbar (но главное — Redux-состояние обновляется в extraReducers)
               const camerasArray = Array.isArray(action.payload)
                 ? action.payload
                 : [action.payload]
@@ -147,26 +178,25 @@ function App() {
         setFileError={setFileError}
         setNewCameras={setNewCameras}
       />
-
       <div style={{ marginTop: 64, height: 'calc(100% - 64px)' }}>
         <CameraMap
           point={point}
           setPoint={setPoint}
           cameraViews={cameraViews}
-          iconColor={iconColor}
           mapRef={mapRef}
           handleDialogOpen={() => setOpenDialog(true)}
           handleOpenVideoDialog={handleOpenVideoDialog}
-          blinkingCamera={blinkingCamera}
+          search={search}
           markerRefs={markerRefs}
+          // Если режим задания угла активен, передаём обработчик клика
+          onMapClick={angleSettingCamera ? handleMapClickForAngle : null}
+          angleSettingCamera={angleSettingCamera}
         />
       </div>
-
       <CameraDrawer
         drawerOpen={drawerOpen}
         onCloseDrawer={() => setDrawerOpen(false)}
         cameraViews={cameraViews}
-        iconColor={iconColor}
         search={search}
         setSearch={setSearch}
         handleDeleteCamera={(camera) => {
@@ -176,9 +206,7 @@ function App() {
         startBlinkingMarker={(camera) =>
           startBlinkingMarker(camera, markerRefs)
         }
-        blinkingCamera={blinkingCamera}
       />
-
       <CameraDialogs
         openDialog={openDialog}
         setOpenDialog={setOpenDialog}
@@ -194,14 +222,13 @@ function App() {
         handleConfirmDeleteCamera={handleConfirmDeleteCamera}
         setPoint={setPoint}
         fileError={fileError}
+        // Передаём колбэк для задания угла (угол обзора)
+        onSetAngle={handleSetAngle}
       />
-
       <NewCamerasSnackbar
         snackbarOpen={snackbarOpen}
         handleSnackbarClose={handleSnackbarClose}
         newCameras={newCameras}
-        handleMouseEnter={handleMouseEnter}
-        handleMouseLeave={handleMouseLeave}
       />
     </div>
   )

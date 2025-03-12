@@ -8,7 +8,7 @@ import {
   Typography,
 } from '@mui/material'
 
-function DeleteCameraDialog({ open, camera, onClose, onConfirm }) {
+const DeleteCameraDialog = ({ open, camera, onClose, onConfirm }) => {
   return (
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>Удаление камеры</DialogTitle>

@@ -1,3 +1,4 @@
+// CameraDialogs.jsx
 import React from 'react'
 import AddCameraDialog from './AddCameraDialog'
 import VideoDialog from './VideoDialog'
@@ -18,6 +19,8 @@ const CameraDialogs = ({
   handleConfirmDeleteCamera,
   setPoint,
   fileError,
+  onSetAngle, // уже было
+  onSetMove, // новый проп
 }) => {
   return (
     <>
@@ -32,16 +35,16 @@ const CameraDialogs = ({
         handleAddCamera={handleAddCamera}
         fileError={fileError}
       />
-
       {openVideoDialog && (
         <VideoDialog
           key={cameraForVideo?.rtspUrl || 'default'}
           open={openVideoDialog}
           onClose={handleCloseVideoDialog}
           camera={cameraForVideo}
+          onSetAngle={onSetAngle}
+          onSetMove={onSetMove} // <-- добавили
         />
       )}
-
       <DeleteCameraDialog
         open={openDeleteDialog}
         camera={cameraToDelete}

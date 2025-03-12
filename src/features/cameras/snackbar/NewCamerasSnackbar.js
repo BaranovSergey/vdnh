@@ -1,10 +1,10 @@
 import React from 'react'
-import { Snackbar, Alert } from '@mui/material'
+import { Snackbar, Alert, Button } from '@mui/material'
 
 const NewCamerasSnackbar = ({
   snackbarOpen,
   handleSnackbarClose,
-  newCameras,
+  newCameras = [],
   handleMouseEnter,
   handleMouseLeave,
 }) => {
@@ -17,18 +17,23 @@ const NewCamerasSnackbar = ({
       onMouseLeave={handleMouseLeave}
       anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       ContentProps={{
-        sx: {
-          width: '40vw',
-          maxWidth: '40vw',
-        },
+        sx: { width: '40vw', maxWidth: '40vw' },
       }}
     >
       <Alert
-        onClose={(e) => {
-          e.stopPropagation()
-          handleSnackbarClose()
-        }}
         severity="success"
+        action={
+          <Button
+            color="inherit"
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleSnackbarClose()
+            }}
+          >
+            ✖
+          </Button>
+        }
         sx={{ width: '100%', maxHeight: '50vh', overflowY: 'auto' }}
       >
         Добавлены новые камеры:

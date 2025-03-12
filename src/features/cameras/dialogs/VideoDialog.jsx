@@ -8,7 +8,7 @@ import {
   Typography,
 } from '@mui/material'
 
-function VideoDialog({ open, onClose, camera }) {
+function VideoDialog({ open, onClose, camera, onSetAngle }) {
   const handleOpenInVLC = () => {
     const rtspUrl = camera?.rtspUrl
     if (!rtspUrl) {
@@ -35,6 +35,9 @@ function VideoDialog({ open, onClose, camera }) {
         </Typography>
       </DialogContent>
       <DialogActions>
+        <Button onClick={() => onSetAngle(camera)} color="secondary">
+          Угол обзора
+        </Button>
         <Button onClick={handleOpenInVLC} color="primary" variant="contained">
           Открыть в VLC
         </Button>
