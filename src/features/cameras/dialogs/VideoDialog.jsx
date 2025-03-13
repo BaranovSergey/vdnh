@@ -10,14 +10,16 @@ import {
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 
-function VideoDialog({
-  open,
-  onClose,
-  camera,
-  onSetAngle,
-  onSetMove,
-  handleOpenInVLC,
-}) {
+function VideoDialog({ open, onClose, camera, onSetAngle, onSetMove }) {
+  const handleOpenInVLC = () => {
+    const rtspUrl = camera?.rtspUrl
+    if (!rtspUrl) {
+      console.error('RTSP URL отсутствует.')
+      return
+    }
+    window.location.href = rtspUrl
+    onClose()
+  }
   return (
     <Dialog
       open={open}
