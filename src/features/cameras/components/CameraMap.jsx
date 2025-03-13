@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react'
+// CameraMap.jsx
+import React, { useMemo, useState, useEffect } from 'react'
 import {
   MapContainer,
   TileLayer,
@@ -21,7 +22,6 @@ export const createCameraIcon = (color) =>
     iconAnchor: [12, 12],
   })
 
-// Для вычисления азимута
 const computeBearing = (lat1, lng1, lat2, lng2) => {
   const toRad = (deg) => (deg * Math.PI) / 180
   const toDeg = (rad) => (rad * 180) / Math.PI
@@ -33,8 +33,7 @@ const computeBearing = (lat1, lng1, lat2, lng2) => {
   const x =
     Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ)
   let bearing = toDeg(Math.atan2(y, x))
-  bearing = (bearing + 360) % 360
-  return bearing
+  return (bearing + 360) % 360
 }
 
 const createGhostIcon = () =>
@@ -54,39 +53,43 @@ const CameraMap = ({
   setPoint,
   cameraViews = [],
   mapRef,
-  handleDialogOpen, // Функция, открывающая диалог «Добавить камеру» (или что-то ещё)
-  handleOpenVideoDialog, // Функция, открывающая диалог видео при клике на маркер
+  handleDialogOpen, // Функция открытия диалога "Добавить камеру"
+  handleOpenVideoDialog, // Функция открытия видео-диалога при клике на маркер
   search,
   markerRefs,
-  // Функция, обрабатывающая клик по карте (для «передвинуть» или «задать угол»)
+  // Функция обработки клика по карте (для задания угла или перемещения)
   onMapClick,
   // Если передана camera – значит мы в режиме задания угла
   angleSettingCamera,
-  // Если передана camera – значит мы в режиме передвижения
+  // Если передана камера – значит мы в режиме перемещения
   moveSettingCamera,
 }) => {
   const [currentMousePos, setCurrentMousePos] = useState(null)
 
-  // Обработчик событий на карте
+  // Хук для отключения/включения перетаскивания карты в режиме перемещения
+  useEffect(() => {
+    if (mapRef.current) {
+      if (moveSettingCamera) {
+        mapRef.current.dragging.disable()
+      } else {
+        mapRef.current.dragging.enable()
+      }
+    }
+  }, [moveSettingCamera, mapRef])
+
+  // Обработчик событий карты
   const MapEventHandler = () => {
     useMapEvents({
       click(e) {
-        // Логируем для отладки
-        console.log('Map click. onMapClick =', onMapClick)
-
-        // Если передана onMapClick (режим «угол» или «передвинуть»)
         if (onMapClick) {
           onMapClick(e.latlng)
         } else {
-          // Иначе обычное поведение – используем setPoint + handleDialogOpen
           const { lat, lng } = e.latlng
-          console.log('Map click => add camera at ', lat, lng)
           setPoint({ lat, lng })
           handleDialogOpen()
         }
       },
       mousemove(e) {
-        // Если мы в режиме задания угла или передвижения, сохраняем координаты мыши
         if (onMapClick && (angleSettingCamera || moveSettingCamera)) {
           setCurrentMousePos(e.latlng)
         }
@@ -95,7 +98,7 @@ const CameraMap = ({
     return null
   }
 
-  // Фильтруем камеры по подстроке поиска
+  // Фильтрация камер по строке поиска
   const filteredCameras = useMemo(() => {
     return cameraViews.filter(
       (camera) =>
@@ -155,14 +158,11 @@ const CameraMap = ({
             <Marker
               key={camera.id || camera.rtspUrl}
               position={[camera.start.lat, camera.start.lng]}
-              icon={createCameraIcon('black')}
+              icon={createCameraIcon(camera.online ? 'black' : 'red')}
               ref={markerRefs.current[camera.rtspUrl]}
               eventHandlers={{
                 click: (e) => {
-                  console.log('Marker click => stopPropagation + open dialog.')
-                  // Останавливаем всплытие, чтобы не пошёл клик на карту
                   e.originalEvent.stopPropagation()
-                  // Открываем диалог
                   handleOpenVideoDialog(camera)
                 },
               }}
@@ -173,17 +173,15 @@ const CameraMap = ({
         })}
       </MarkerClusterGroup>
 
-      {/* Призрачный маркер при передвижении камеры */}
+      {/* Призрачный маркер для перемещения */}
       {moveSettingCamera && currentMousePos && (
         <Marker
           position={[currentMousePos.lat, currentMousePos.lng]}
           icon={createGhostIcon()}
-        >
-          <Tooltip>Новое место камеры</Tooltip>
-        </Marker>
+        ></Marker>
       )}
 
-      {/* Динамический сектор при задании угла */}
+      {/* Динамический сектор для задания угла обзора */}
       {angleSettingCamera && currentMousePos && (
         <AngleOverlay
           key={`angle-setting-${
@@ -201,9 +199,8 @@ const CameraMap = ({
         />
       )}
 
-      {/* Статические сектора для камер, у которых уже есть direction */}
+      {/* Статические сектора для камер с заданным направлением */}
       {filteredCameras.map((camera) => {
-        // Если эта камера сейчас в режиме задания угла – пропускаем отрисовку статического сектора
         if (
           angleSettingCamera &&
           (camera.id === angleSettingCamera.id ||
@@ -211,7 +208,6 @@ const CameraMap = ({
         ) {
           return null
         }
-        // Если direction != null
         if (camera.direction != null) {
           return (
             <AngleOverlay

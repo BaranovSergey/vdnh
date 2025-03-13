@@ -1,4 +1,3 @@
-// CameraDialogs.jsx
 import React from 'react'
 import AddCameraDialog from './AddCameraDialog'
 import VideoDialog from './VideoDialog'
@@ -19,7 +18,7 @@ const CameraDialogs = ({
   handleConfirmDeleteCamera,
   setPoint,
   fileError,
-  onSetAngle, // уже было
+  onSetAngle,
   onSetMove, // новый проп
 }) => {
   return (
@@ -42,7 +41,7 @@ const CameraDialogs = ({
           onClose={handleCloseVideoDialog}
           camera={cameraForVideo}
           onSetAngle={onSetAngle}
-          onSetMove={onSetMove} // <-- добавили
+          onSetMove={onSetMove}
         />
       )}
       <DeleteCameraDialog

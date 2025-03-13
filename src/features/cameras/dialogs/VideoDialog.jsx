@@ -6,19 +6,18 @@ import {
   DialogActions,
   Button,
   Typography,
+  IconButton,
 } from '@mui/material'
+import CloseIcon from '@mui/icons-material/Close'
 
-function VideoDialog({ open, onClose, camera, onSetAngle }) {
-  const handleOpenInVLC = () => {
-    const rtspUrl = camera?.rtspUrl
-    if (!rtspUrl) {
-      console.error('RTSP URL отсутствует.')
-      return
-    }
-    window.location.href = rtspUrl
-    onClose()
-  }
-
+function VideoDialog({
+  open,
+  onClose,
+  camera,
+  onSetAngle,
+  onSetMove,
+  handleOpenInVLC,
+}) {
   return (
     <Dialog
       open={open}
@@ -28,21 +27,68 @@ function VideoDialog({ open, onClose, camera, onSetAngle }) {
         style: { width: 'auto', maxWidth: '100%' },
       }}
     >
-      <DialogTitle>Видео с камеры</DialogTitle>
+      <DialogTitle sx={{ m: 0, p: 2, position: 'relative' }}>
+        Видео с камеры
+        <IconButton
+          aria-label="close"
+          onClick={onClose}
+          sx={{
+            position: 'absolute',
+            right: 8,
+            top: 8,
+            color: 'grey.500',
+            '&:hover': {
+              color: 'red',
+            },
+            padding: 1,
+          }}
+        >
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </DialogTitle>
       <DialogContent>
         <Typography variant="body1">
           Поток RTSP: <strong>{camera?.rtspUrl || 'URL отсутствует'}</strong>
         </Typography>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={() => onSetAngle(camera)} color="secondary">
+      <DialogActions sx={{ justifyContent: 'center' }}>
+        <Button
+          onClick={() => onSetAngle(camera)}
+          variant="contained"
+          sx={{
+            backgroundColor: '#87CEFA',
+            '&:hover': {
+              backgroundColor: '#ADD8E6',
+            },
+          }}
+        >
           Угол обзора
         </Button>
-        <Button onClick={handleOpenInVLC} color="primary" variant="contained">
-          Открыть в VLC
+        <Button
+          onClick={() => onSetMove(camera)}
+          variant="outlined"
+          sx={{
+            borderColor: 'grey',
+            color: 'grey',
+            '&:hover': {
+              borderColor: 'darkgrey',
+              color: 'darkgrey',
+            },
+          }}
+        >
+          Переместить
         </Button>
-        <Button onClick={onClose} color="secondary">
-          Закрыть
+        <Button
+          onClick={handleOpenInVLC}
+          variant="contained"
+          sx={{
+            backgroundColor: 'orange',
+            '&:hover': {
+              backgroundColor: 'darkorange',
+            },
+          }}
+        >
+          Открыть в VLC
         </Button>
       </DialogActions>
     </Dialog>

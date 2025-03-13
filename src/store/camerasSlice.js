@@ -1,3 +1,4 @@
+// camerasSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
 import axios from 'axios'
 
@@ -106,6 +107,23 @@ export const updateCameraDirection = createAsyncThunk(
   }
 )
 
+// Обновление координат камеры (новый thunk для перемещения)
+export const updateCameraCoordinates = createAsyncThunk(
+  'cameras/updateCameraCoordinates',
+  async ({ id, lat, lng }, { rejectWithValue }) => {
+    try {
+      const response = await axios.patch(`${API_URL}/${id}`, { lat, lng })
+      const data = response.data
+      if (!data.start) {
+        data.start = { lat: Number(data.lat), lng: Number(data.lng) }
+      }
+      return data
+    } catch (err) {
+      return rejectWithValue(err.response.data)
+    }
+  }
+)
+
 const camerasSlice = createSlice({
   name: 'cameras',
   initialState: {
@@ -139,6 +157,14 @@ const camerasSlice = createSlice({
         )
       })
       .addCase(updateCameraDirection.fulfilled, (state, action) => {
+        const index = state.cameraViews.findIndex(
+          (camera) => camera.id === action.payload.id
+        )
+        if (index !== -1) {
+          state.cameraViews[index] = action.payload
+        }
+      })
+      .addCase(updateCameraCoordinates.fulfilled, (state, action) => {
         const index = state.cameraViews.findIndex(
           (camera) => camera.id === action.payload.id
         )

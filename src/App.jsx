@@ -1,3 +1,4 @@
+// App.jsx
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import Navbar from './features/layout/Navbar'
@@ -10,6 +11,7 @@ import {
   deleteCameraFromAPI,
   addCamerasToAPI,
   updateCameraDirection,
+  updateCameraCoordinates,
 } from './store/camerasSlice'
 import CameraDialogs from './features/cameras/dialogs/CameraDialogs'
 import NewCamerasSnackbar from './features/cameras/snackbar/NewCamerasSnackbar'
@@ -17,7 +19,7 @@ import useEscapeKey from './hooks/useEscapeKey'
 import useBlinkingMarker from './hooks/useBlinkingMarker'
 import './App.css'
 
-// Функция для вычисления азимута (в градусах) между двумя точками
+// Функция для вычисления азимута (в градусах)
 const computeBearing = (lat1, lng1, lat2, lng2) => {
   const toRad = (deg) => (deg * Math.PI) / 180
   const toDeg = (rad) => (rad * 180) / Math.PI
@@ -30,8 +32,7 @@ const computeBearing = (lat1, lng1, lat2, lng2) => {
   const x =
     Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ)
   let bearing = toDeg(Math.atan2(y, x))
-  bearing = (bearing + 360) % 360
-  return bearing
+  return (bearing + 360) % 360
 }
 
 function App() {
@@ -55,20 +56,20 @@ function App() {
   const markerRefs = useRef({})
   const { startBlinkingMarker } = useBlinkingMarker()
 
-  // Состояние для режима задания угла обзора
+  // Состояния для режимов задания угла и перемещения
   const [angleSettingCamera, setAngleSettingCamera] = useState(null)
+  const [moveSettingCamera, setMoveSettingCamera] = useState(null)
 
   useEffect(() => {
     dispatch(fetchCameras())
   }, [dispatch])
 
-  // Добавляем камеру – не передаём direction, чтобы на сервере сохранилось NULL
+  // Функция добавления камеры
   const handleAddCamera = useCallback(() => {
     if (cameraUrl.trim() && point) {
       const newCamera = {
         rtspUrl: cameraUrl.trim(),
         start: { lat: point.lat, lng: point.lng },
-        // Не указываем direction
       }
 
       const exists = cameraViews.find(
@@ -119,13 +120,19 @@ function App() {
     setSnackbarOpen(false)
   }, [])
 
-  // Режим задания угла: при клике на кнопку "Угол обзора"
+  // Режим задания угла
   const handleSetAngle = useCallback((camera) => {
     setAngleSettingCamera(camera)
     setOpenVideoDialog(false)
   }, [])
 
-  // Клик по карте для сохранения финального угла
+  // Режим перемещения
+  const handleSetMove = useCallback((camera) => {
+    setMoveSettingCamera(camera)
+    setOpenVideoDialog(false)
+  }, [])
+
+  // Клик по карте для сохранения нового угла
   const handleMapClickForAngle = useCallback(
     (latlng) => {
       if (!angleSettingCamera) return
@@ -139,7 +146,23 @@ function App() {
     [angleSettingCamera, dispatch]
   )
 
-  // Выход из режимов при Esc
+  // Клик по карте для сохранения новых координат при перемещении
+  const handleMapClickForMove = useCallback(
+    (latlng) => {
+      if (!moveSettingCamera) return
+      dispatch(
+        updateCameraCoordinates({
+          id: moveSettingCamera.id,
+          lat: latlng.lat,
+          lng: latlng.lng,
+        })
+      )
+      setMoveSettingCamera(null)
+    },
+    [moveSettingCamera, dispatch]
+  )
+
+  // Выход из режимов по нажатию Escape
   useEscapeKey(() => {
     if (openDialog) {
       setOpenDialog(false)
@@ -147,8 +170,10 @@ function App() {
       setPoint(null)
     } else if (angleSettingCamera) {
       setAngleSettingCamera(null)
+    } else if (moveSettingCamera) {
+      setMoveSettingCamera(null)
     }
-  }, [openDialog, point, angleSettingCamera])
+  }, [openDialog, point, angleSettingCamera, moveSettingCamera])
 
   return (
     <div style={{ height: '100vh' }}>
@@ -160,7 +185,6 @@ function App() {
       <AddCameraByCoordsDialog
         openDialog={openAddByCoordsDialog}
         handleDialogClose={() => setOpenAddByCoordsDialog(false)}
-        // При добавлении камер из файла/координат не передаём direction
         handleAddCamerasByFile={(cameras) => {
           dispatch(addCamerasToAPI(cameras)).then((action) => {
             if (action.payload) {
@@ -188,9 +212,15 @@ function App() {
           handleOpenVideoDialog={handleOpenVideoDialog}
           search={search}
           markerRefs={markerRefs}
-          // Если режим задания угла активен, передаём обработчик клика
-          onMapClick={angleSettingCamera ? handleMapClickForAngle : null}
+          onMapClick={
+            angleSettingCamera
+              ? handleMapClickForAngle
+              : moveSettingCamera
+              ? handleMapClickForMove
+              : null
+          }
           angleSettingCamera={angleSettingCamera}
+          moveSettingCamera={moveSettingCamera}
         />
       </div>
       <CameraDrawer
@@ -222,8 +252,8 @@ function App() {
         handleConfirmDeleteCamera={handleConfirmDeleteCamera}
         setPoint={setPoint}
         fileError={fileError}
-        // Передаём колбэк для задания угла (угол обзора)
         onSetAngle={handleSetAngle}
+        onSetMove={handleSetMove}
       />
       <NewCamerasSnackbar
         snackbarOpen={snackbarOpen}
